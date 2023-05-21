@@ -6,6 +6,8 @@
 #include "empty_class.hpp"
 
 using namespace testing;
+using namespace std;
+using namespace ProjectLibrary;
 
 TEST(TestEmpty, TestEmpty)
 {
