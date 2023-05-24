@@ -2,17 +2,20 @@
 #define __EMPTY_H
 
 #include <iostream>
+#include "Eigen/Eigen"
+
 
 // COMMENTO GUIDA: In questo file (e nel suo corrispettivo .cpp) sono state inseriti i contenuti delle struct Point e Triangle del file "versione1annalisa_class.hpp".
 // Il file "versione1annalisa_class.hpp" contiene ancora tutto al suo interno.
 // Le funzioni del file "versione1annalisa_class.hpp" che stanno sotto alla struct Triangle NON sono ancora state scritte da nessun'altra parte.
 
-namespace ProjectLibrary
+namespace DelaunayTriangle
 {
     struct Point
     {
         double x, y;
     };
+
 
     struct Triangle
     {
@@ -43,7 +46,30 @@ namespace ProjectLibrary
 
         //funzione "triangleContainsPoint" prende in input le coordinate di un nuovo punto e stabilisce se questo sia interno o meno al triangolo su cui viene richiamata
         bool triangleContainsPoint(const double x, const double y) const;
-};
+    };
+
+
+    ///\brief Calcola la distanza tra due punti
+        ///\param Due punti
+        ///\return La distanza tra i due punti
+        double Distance(const Point& p1,
+                        const Point& p2);
+
+
+        ///\brief Calcola l'angolo tra tre punti, corrispondente all'angolo al vertice nel primo dei punti passati (p1)
+        ///\param Tre punti (corrispondenti ai vertici del triangolo): p1, p2, p3
+        ///\return Il valore dell'angolo al vertice p1.
+        double calculateAngle(const Point& p1,
+                              const Point& p2,
+                              const Point& p3);
+
+
+        ///\brief Verifica se i due triangoli in input verificano l'ipotesi di Delaunay o meno
+        ///\param Due triangoli t1 e t2, adiacenti
+        ///\return True se l'ipotesi è rispettata, False altrimenti
+        void delaunayCondition( Triangle& t1,
+                                Triangle& t2 );
+
 
 }
 

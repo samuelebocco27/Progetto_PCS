@@ -2,9 +2,5 @@
 
 int main()
 {
-  ProjectLibrary::Empty empty;
-
-  empty.Show();
-
   return 0;
 }
