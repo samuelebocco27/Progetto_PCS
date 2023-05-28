@@ -1,48 +1,54 @@
 #include "empty_class.hpp"
 
+using namespace Eigen;
+
 namespace DelaunayTriangle
 {
     /// Funzioni della struct Triangle
 
-    Triangle::Triangle(double x1, double y1, double x2, double y2, double x3, double y3)
+    Triangle::Triangle( Point& a, Point& b, Point& c )
     {
-        vertices[0] = {x1, y1};
-        vertices[1] = {x2, y2};
-        vertices[2] = {x3, y3};
-        OrderTrianglePoints(vertices);  // Ordino i vertici del triangolo in senso antiorario
-        adjacent_triangles[0] = nullptr;
-        adjacent_triangles[1] = nullptr;
-        adjacent_triangles[2] = nullptr;
+        vertices[0] = &a;
+        vertices[1] = &b;
+        vertices[2] = &c;
+        //OrderTrianglePoints(vertices);  // Ordino i vertici del triangolo in senso antiorario
+        //adjacent_triangles[0] = nullptr;
+        //adjacent_triangles[1] = nullptr;
+        //adjacent_triangles[2] = nullptr;
         //Inizializziamo i puntatori a 'nullptr', non avendo ancora definito gli oggetti Triangle adiacenti.
+        active = true;
     }
 
 
-    void Triangle::OrderTrianglePoints( Point (&vertices)[3] )
+    void Triangle::OrderTrianglePoints( array<Point*, 3>& vertices )
     {
-        Point a = vertices[0];
-        Point b = vertices[1];
-        Point c = vertices[2];
+        Point a = *vertices[0];
+        Point b = *vertices[1];
+        Point c = *vertices[2];
 
-        Point vectorAB = {b.x - a.x, b.y - a.y};  // "Vettore" B - A
-        Point vectorAC = {c.x - a.x, c.y - a.y};  // "Vettore" C - A
+        Vector2d vectorAB = {b.x - a.x, b.y - a.y};  // "Vettore" B - A
+        Vector2d vectorAC = {c.x - a.x, c.y - a.y};  // "Vettore" C - A
 
         // Prodotto vettoriale: vectorAB x vectorAC = (B-A) x (C-A)
-        double crossProduct = vectorAB.x * vectorAC.y - vectorAB.y * vectorAC.x;
+        double crossProduct = vectorAB.x() * vectorAC.y() - vectorAB.y() * vectorAC.x();
 
         if (crossProduct < 0)
         {
             // Scambio il punto B e il punto C
             vertices[1] = vertices[2];
-            vertices[2] = b;
+            vertices[2] = &b;
         }
     }
 
 
-    double Triangle::area() const
+    double Triangle::Area() const
     {
-        Point a = vertices[0];
-        Point b = vertices[1];
-        Point c = vertices[2];
+        if( vertices[0] == nullptr || vertices[1] == nullptr || vertices[2] == nullptr )
+            return 0.0;
+
+        Point a = *vertices[0];
+        Point b = *vertices[1];
+        Point c = *vertices[2];
         //calcolo l'area mediante il prodotto vettoriale: area(abc) = (ab x ac)/2
         double ab_x = b.x - a.x;
         double ab_y = b.y - a.y;
@@ -54,13 +60,19 @@ namespace DelaunayTriangle
     }
 
 
-    bool Triangle::circoContainsPoint(const double x, const double y) const //NOTA BENE: i vertici a,b,c vanno passati in senso antiorario!
+    bool Triangle::CircoContainsPoint(const Point a) const
+    {
+        return CircoContainsPoint( a.x, a.y );
+    }
+
+
+    bool Triangle::CircoContainsPoint(const double x, const double y) const //NOTA BENE: i vertici a,b,c vanno passati in senso antiorario!
     {
         //chiamiamo a,b,c i vertici del triangolo e d il nuovo punto.
         //creo queste variabili ausiliarie dal nome "corto" per semplificare la scrittura del determinante.
-        double ax = vertices[0].x; double ay = vertices[0].y;
-        double bx = vertices[1].x; double by = vertices[1].y;
-        double cx = vertices[2].x; double cy = vertices[2].y;
+        double ax = (*vertices[0]).x; double ay = (*vertices[0]).y;
+        double bx = (*vertices[1]).x; double by = (*vertices[1]).y;
+        double cx = (*vertices[2]).x; double cy = (*vertices[2]).y;
         double dx = x; double dy = y;
 
         double elem13 = pow((ax - dx), 2) + pow((ay -dy), 2);
@@ -78,17 +90,26 @@ namespace DelaunayTriangle
     }
 
 
-    bool Triangle::triangleContainsPoint(const double x, const double y) const
+    bool Triangle::TriangleContainsPoint(const Point a) const
+    {
+        return TriangleContainsPoint(a.x, a.y);
+    }
+
+
+    bool Triangle::TriangleContainsPoint(const double x, const double y) const
     {
         //faccio un primo check verificando se il punto d sia esterno o meno alla circonferenza circoscritta al triangolo
-        if (!circoContainsPoint(x, y))
-        {return false;}  //il punto è sicuramente esterno al triangolo
+        if (!CircoContainsPoint(x, y))
+        {
+            //il punto è sicuramente esterno al triangolo
+            return false;
+        }
 
         //chiamiamo a,b,c i vertici del triangolo e d il nuovo punto
         //creo queste variabili ausiliarie dal nome "corto" per semplificare la scrittura dei determinanti
-        double ax = vertices[0].x; double ay = vertices[0].y;
-        double bx = vertices[1].x; double by = vertices[1].y;
-        double cx = vertices[2].x; double cy = vertices[2].y;
+        double ax = (*vertices[0]).x; double ay = (*vertices[0]).y;
+        double bx = (*vertices[1]).x; double by = (*vertices[1]).y;
+        double cx = (*vertices[2]).x; double cy = (*vertices[2]).y;
         double dx = x; double dy = y;
 
         //Questo calcolo può essere interpretato come la terza componente
@@ -111,8 +132,8 @@ namespace DelaunayTriangle
 
     /// Funzioni esterne alla struct Triangle
 
-    double Distance(const Point& p1,
-                    const Point& p2)
+    double Distance(const Point p1,
+                    const Point p2)
     {
         double dx = p2.x - p1.x;
         double dy = p2.y - p1.y;
@@ -120,9 +141,9 @@ namespace DelaunayTriangle
     }
 
 
-    double calculateAngle(const Point& p1,
-                          const Point& p2,
-                          const Point& p3)
+    double CalculateAngle(const Point p1,
+                          const Point p2,
+                          const Point p3)
     {
         double d1 = Distance(p2, p3);
         double d2 = Distance(p1, p3);
@@ -131,15 +152,15 @@ namespace DelaunayTriangle
     }
 
 
-    void delaunayCondition( Triangle& t1,
+    void DelaunayCondition( Triangle& t1,
                             Triangle& t2 )
     {
-        Point& a1 = t1.vertices[0];
-        Point& b1 = t1.vertices[1];
-        Point& c1 = t1.vertices[2];
-        Point& a2 = t2.vertices[0];
-        Point& b2 = t2.vertices[1];
-        Point& c2 = t2.vertices[2];
+        Point& a1 = *t1.vertices[0];
+        Point& b1 = *t1.vertices[1];
+        Point& c1 = *t1.vertices[2];
+        Point& a2 = *t2.vertices[0];
+        Point& b2 = *t2.vertices[1];
+        Point& c2 = *t2.vertices[2];
 
         Point* sharedVertex1 = nullptr;
         Point* sharedVertex2 = nullptr;
@@ -177,17 +198,82 @@ namespace DelaunayTriangle
             {notShared2 = &c2;}
 
         // Calcolo gli angoli al vertice per notShared1 e notShared2.
-        double angle1 = calculateAngle(*notShared1, *sharedVertex1, *sharedVertex2);  // gli input sono di tipo Point
-        double angle2 = calculateAngle(*notShared2, *sharedVertex1, *sharedVertex2);  // gli input sono di tipo Point
+        double angle1 = CalculateAngle(*notShared1, *sharedVertex1, *sharedVertex2);  // gli input sono di tipo Point
+        double angle2 = CalculateAngle(*notShared2, *sharedVertex1, *sharedVertex2);  // gli input sono di tipo Point
 
         // Verifico se l'ipotesi di Delaunay è soddisfatta.
         // Caso in cui l'ipotesi non è soddisfatta --> Eseguire l'operazione di flip.
         if (angle1 + angle2 > M_PI)
         {
             // Elimino il lato (sharedVertex1, sharedVertex2) e creo il lato (notShared1, notShared2)
-            t1 = Triangle(notShared1->x, notShared1->y, notShared2->x, notShared2->y, sharedVertex1->x, sharedVertex1->y);
-            t2 = Triangle(notShared1->x, notShared1->y, notShared2->x, notShared2->y, sharedVertex2->x, sharedVertex2->y);
+            t1 = Triangle(*notShared1, *notShared2, *sharedVertex1);
+            t2 = Triangle(*notShared1, *notShared2, *sharedVertex2);
         }
     }
+
+
+    Triangle GetMaxAreaTriangle(vector<Point>& points, int start, int end)
+    {
+        // Se ci sono meno di due punti, l'area non può essere calcolata e quindi il processo ritorna il triangolo di area nulla, che
+        // sicuramente non è quello di area massima
+        if( end - start < 2 )
+        {
+            return Triangle();
+        }
+
+        // Caso base: se ci sono solo tre punti, il triangolo di area massima è l'unico triangolo possibile
+        if (end - start == 2) {
+            return Triangle(points[start], points[start + 1], points[start + 2]);
+        }
+
+        // Divido i punti in due gruppi. Trovo ricorsivamente la massima area per i punti di un set e dell'altro
+        int mid = start + (end - start) / 2;
+        Triangle leftMaxTriangle = GetMaxAreaTriangle(points, start, mid);
+        double leftMaxArea = leftMaxTriangle.Area();
+        Triangle rightMaxTriangle = GetMaxAreaTriangle(points, mid, end);
+        double rightMaxArea = rightMaxTriangle.Area();
+
+        // Trovo l'area massima per i triangoli formati da punti provenienti da entrambi i set
+        double crossMax = 0.0;
+        Triangle crossMaxTriangle;
+        int left = mid - 1, right = mid + 1;
+        while (left >= start && right < end)
+        {
+            crossMaxTriangle = Triangle(points[left], points[mid], points[right]);
+            crossMax = max(crossMax, crossMaxTriangle.Area());
+            if (left == start)
+            {
+                right++;
+            }
+            else if (right == end - 1)
+            {
+                left--;
+            }
+            else
+            {
+                double area1 = Triangle(points[left - 1], points[left], points[mid]).Area();
+                double area2 = Triangle(points[mid], points[right], points[right + 1]).Area();
+                if (area1 > area2)
+                {
+                    left--;
+                }
+                else
+                {
+                    right++;
+                }
+            }
+        }
+
+        // Ritorno l'area massima tra i triangoli con area massima dei due set e di quello che li mischia entrambi.
+        double max_area = max(crossMax, max(leftMaxArea, rightMaxArea));
+        if( max_area == leftMaxArea )
+            return leftMaxTriangle;
+        else if( max_area == rightMaxArea )
+            return rightMaxTriangle;
+        else
+            return crossMaxTriangle;
+    }
+
+
 
 }

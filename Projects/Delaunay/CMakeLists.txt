@@ -55,10 +55,10 @@ list(APPEND delaunay_test_INCLUDE ${delaunay_test_includes})
 ################################################################################
 
 add_executable(delaunay_test
-	main_test.cpp
-	${delaunay_test_HEADERS}
-	${delaunay_test_INCLUDE}
-	${delaunay_SOURCES}
+        main_test.cpp
+        ${delaunay_test_HEADERS}
+        ${delaunay_test_INCLUDE}
+        ${delaunay_SOURCES}
     ${delaunay_HEADERS})
 
 target_link_libraries(delaunay_test ${delaunay_LINKED_LIBRARIES})
