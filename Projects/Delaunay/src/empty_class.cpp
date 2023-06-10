@@ -4,94 +4,31 @@ using namespace Eigen;
 
 namespace DelaunayTriangle
 {
-    /// Costruttori di Edge
+    /// Costruttore di Edge
 
-    Edge::Edge(Point& a, Point& b, Mesh& mesh)
+    Edge::Edge(int idPoint1, int idPoint2)
     {
-        idOrigin = a.id;
-        idEnd = b.id;
-        id = mesh.edges.size();
-    }
-
-
-    Edge::Edge(Point &a, Point &b)
-    {
-        idOrigin = a.id;
-        idEnd = b.id;
-    }
-
-
-    Edge::Edge(int a, int b)
-    {
-        idOrigin = a;
-        idEnd = b;
+        idOrigin = idPoint1;
+        idEnd = idPoint2;
     }
 
 
     /// Funzioni della struct Triangle
-
-    // costruttore scritto da Sara e Annalisa che mischia il contenuto di Triangle(Point& a, Point& b, Point& c) e di AddEdge()
-    Triangle::Triangle(Point& a, Point& b, Point& c, Mesh& mesh)
+    ///
+    Triangle::Triangle(int a, int b, int c, Mesh* mesh)
     {
-        id = mesh.triangles.size();
-
-        vertices[0] = &a;
-        vertices[1] = &b;
-        vertices[2] = &c;
-        OrderTrianglePoints(vertices);
-
-        for (unsigned int i = 0; i < 3; i++)
-        {
-            for (unsigned int j = 0; j < mesh.edges.size(); j++)
-            {
-                // Controllo se la coppia di punti è già inserita negli estremi di un edge
-                if (( mesh.edges[j].idOrigin == (*vertices[i]).id && mesh.edges[j].idEnd == (*vertices[(i+1)%3]).id ) ||
-                    ( mesh.edges[j].idOrigin == (*vertices[(i+1)%3]).id && mesh.edges[j].idEnd == (*vertices[i]).id ))
-                {
-                    // Entro nell'if se il lato esiste già
-
-                    // aggiungo l'id del triangolo costruito a idTriangles del lato in questione
-                    mesh.edges[j].idTriangles.push_back(id);
-
-                    // aggiungo l'id del lato a idEdges del triangolo che sto costruendo
-                    idEdges[i] = mesh.edges[j].id;
-                    break;
-                }
-                else
-                {
-                    // Il lato non c'era ancora --> lo creo
-                    Edge newEdge = Edge(*vertices[i], *vertices[(i+1) % 3], mesh);
-
-                    // Aggiungo l'id del triangolo costruito a idTriangles del lato in questione, che è newEdge
-                    newEdge.idTriangles.push_back(id);
-
-                    // aggiungo l'id del lato a idEdges del triangolo che sto costruendo
-                    idEdges[i] = newEdge.id;
-
-                    // Aggiungo il lato alla mesh
-                    mesh.edges.push_back(newEdge);
-                }
-            }
-        }
-
-        active = true;
+        idVertices[0] = a;
+        idVertices[1] = b;
+        idVertices[2] = c;
+        OrderTrianglePoints(idVertices, *mesh);
     }
 
 
-    Triangle::Triangle(Point& a, Point& b, Point& c)
+    void Triangle::OrderTrianglePoints(array<int ,3>& vertices, const Mesh& mesh)
     {
-        vertices[0] = &a;
-        vertices[1] = &b;
-        vertices[2] = &c;
-        OrderTrianglePoints(vertices);
-    }
-
-
-    void Triangle::OrderTrianglePoints(array<Point*, 3>& vertices)
-    {
-        Point a = *vertices[0];
-        Point b = *vertices[1];
-        Point c = *vertices[2];
+        Point a = mesh.points[vertices[0]];
+        Point b = mesh.points[vertices[1]];
+        Point c = mesh.points[vertices[2]];
 
         Vector2d vectorAB = {b.x - a.x, b.y - a.y};  // Vettore B - A
         Vector2d vectorAC = {c.x - a.x, c.y - a.y};  // Vettore C - A
@@ -102,20 +39,21 @@ namespace DelaunayTriangle
         if (crossProduct < 0)
         {
             // Scambio il punto B e il punto C
+            int temp = vertices[1];
             vertices[1] = vertices[2];
-            vertices[2] = &b;
+            vertices[2] = temp;
         }
     }
 
 
-    double Triangle::Area() const
+    double Triangle::Area(const Mesh* mesh) const
     {
-        if( vertices[0] == nullptr || vertices[1] == nullptr || vertices[2] == nullptr )
+        if( idVertices[0] < 0 || idVertices[1] < 0 || idVertices[2] < 0 )
             return 0.0;
 
-        Point a = *vertices[0];
-        Point b = *vertices[1];
-        Point c = *vertices[2];
+        Point a = mesh->points[idVertices[0]];
+        Point b = mesh->points[idVertices[1]];
+        Point c = mesh->points[idVertices[2]];
         //calcolo l'area mediante il prodotto vettoriale: area(abc) = (ab x ac)/2
         double ab_x = b.x - a.x;
         double ab_y = b.y - a.y;
@@ -127,19 +65,19 @@ namespace DelaunayTriangle
     }
 
 
-    bool Triangle::CircoContainsPoint(const Point a) const
+    bool Triangle::CircoContainsPoint(const int idPoint, const Mesh& mesh) const
     {
-        return CircoContainsPoint( a.x, a.y );
+        return CircoContainsPoint(mesh.points[idPoint].x, mesh.points[idPoint].y, mesh);
     }
 
 
-    bool Triangle::CircoContainsPoint(const double x, const double y) const //NOTA BENE: i vertici a,b,c vanno passati in senso antiorario!
+    bool Triangle::CircoContainsPoint(const double x, const double y, const Mesh& mesh) const //NOTA BENE: i vertici a,b,c vanno passati in senso antiorario!
     {
         //chiamiamo a,b,c i vertici del triangolo e d il nuovo punto.
         //creo queste variabili ausiliarie dal nome "corto" per semplificare la scrittura del determinante.
-        double ax = (*vertices[0]).x; double ay = (*vertices[0]).y;
-        double bx = (*vertices[1]).x; double by = (*vertices[1]).y;
-        double cx = (*vertices[2]).x; double cy = (*vertices[2]).y;
+        double ax = mesh.points[idVertices[0]].x; double ay = mesh.points[idVertices[0]].y;
+        double bx = mesh.points[idVertices[1]].x; double by = mesh.points[idVertices[1]].y;
+        double cx = mesh.points[idVertices[2]].x; double cy = mesh.points[idVertices[2]].y;
         double dx = x; double dy = y;
 
         double elem13 = pow((ax - dx), 2) + pow((ay -dy), 2);
@@ -157,26 +95,26 @@ namespace DelaunayTriangle
     }
 
 
-    bool Triangle::TriangleContainsPoint(const Point a) const
+    int Triangle::TriangleContainsPoint(const int idPoint, const Mesh& mesh) const
     {
-        return TriangleContainsPoint(a.x, a.y);
+        return TriangleContainsPoint(mesh.points[idPoint].x, mesh.points[idPoint].y, mesh);
     }
 
 
-    bool Triangle::TriangleContainsPoint(const double x, const double y) const
+    int Triangle::TriangleContainsPoint(const double x, const double y, const Mesh& mesh) const
     {
         //faccio un primo check verificando se il punto d sia esterno o meno alla circonferenza circoscritta al triangolo
-        if (!CircoContainsPoint(x, y))
+        if (!CircoContainsPoint(x, y, mesh))
         {
             //il punto è sicuramente esterno al triangolo
-            return false;
+            return 0;
         }
 
         //chiamiamo a,b,c i vertici del triangolo e d il nuovo punto
         //creo queste variabili ausiliarie dal nome "corto" per semplificare la scrittura dei determinanti
-        double ax = (*vertices[0]).x; double ay = (*vertices[0]).y;
-        double bx = (*vertices[1]).x; double by = (*vertices[1]).y;
-        double cx = (*vertices[2]).x; double cy = (*vertices[2]).y;
+        double ax = mesh.points[idVertices[0]].x; double ay = mesh.points[idVertices[0]].y;
+        double bx = mesh.points[idVertices[1]].x; double by = mesh.points[idVertices[1]].y;
+        double cx = mesh.points[idVertices[2]].x; double cy = mesh.points[idVertices[2]].y;
         double dx = x; double dy = y;
 
         //Questo calcolo può essere interpretato come la terza componente
@@ -188,8 +126,17 @@ namespace DelaunayTriangle
         double detBCD = (bx - dx) * (cy - dy) - (cx - dx) * (by - dy);
         double detCAD = (cx - dx) * (ay - dy) - (ax - dx) * (cy - dy);
 
-        //se tutti i determinanti hanno lo stesso segno, il punto d è interno al triangolo, altrimenti è esterno
-        bool result = (detABD > 0 && detBCD > 0 && detCAD >= 0) || (detABD < 0 && detBCD < 0 && detCAD <= 0);
+        int result;
+        if ((detABD > 0 && detBCD > 0 && detCAD > 0) || (detABD < 0 && detBCD < 0 && detCAD < 0))
+            // il punto è interno al triangolo (non di bordo)
+            result = 1;
+        else if ((detABD >= 0 && detBCD >= 0 && detCAD >= 0) || (detABD <= 0 && detBCD <= 0 && detCAD <= 0))
+            // il punto è di bordo al triangolo
+            result = 2;
+        else
+            // il punto è esterno
+            result = 0;
+
         //NOTO: dal momento che i vertici a,b,c del triangolo sono ordinati in senso orario,
         //allora il segno dei determinanti sarà sempre positivo (qualora d fosse interno)
 
@@ -198,7 +145,7 @@ namespace DelaunayTriangle
 
 
     /// Funzioni della struct Mesh
-
+    ///
     bool Mesh::ImportPoints(const string& inputFilePath)
     {
         /// Apertura file
@@ -207,7 +154,7 @@ namespace DelaunayTriangle
 
         if (file.fail())
         {
-            cerr<< "Errore apertura file"<< endl;
+            cerr << "Errore apertura file" << endl;
             return false;
         }
 
@@ -249,8 +196,8 @@ namespace DelaunayTriangle
             for (unsigned int j = 0; j < edges.size(); j++)
             {
                 // Controllo se la coppia di punti è già inserita negli estremi di un edge
-                if (( edges[j].idOrigin == (*t.vertices[i]).id && edges[j].idEnd == (*t.vertices[ (i+1) % 3 ]).id ) ||
-                    ( edges[j].idOrigin == (*t.vertices[ (i+1) % 3 ]).id && edges[j].idEnd == (*t.vertices[i]).id ))
+                if (( edges[j].idOrigin == t.idVertices[i] && edges[j].idEnd == t.idVertices[ (i+1) % 3 ] ) ||
+                    ( edges[j].idOrigin == t.idVertices[ (i+1) % 3 ] && edges[j].idEnd == t.idVertices[i] ))
                 {
                     // Entro nell'if se il lato esiste già
 
@@ -268,7 +215,7 @@ namespace DelaunayTriangle
             if(!found)
             {
                 // Il lato non c'era ancora --> lo creo
-                Edge newEdge = Edge(*t.vertices[i], *t.vertices[ (i+1) % 3 ]);
+                Edge newEdge = Edge(t.idVertices[i], t.idVertices[ (i+1) % 3 ]);
 
                 // Aggiungo l'id del triangolo costruito a idTriangles del lato in questione, che è newEdge
                 newEdge.idTriangles.push_back(t.id);
@@ -293,56 +240,90 @@ namespace DelaunayTriangle
         // Analogamente ad AddTriangle, non assegno l'id del lato nel costruttore Edge() in modo da poter costruire lati fittizi.
         // Stessa cosa per il flag active.
         e.id = edges.size();
-        edges.push_back(e);
         e.active = true;
+        edges.push_back(e);
     }
 
 
     void Mesh::GenerateMesh()
     {
-        for (size_t i = 0; i < points.size(); i++)   // itero sui punti della mesh
+        for (unsigned int i = 0; i < points.size(); i++)   // itero sui punti della mesh
         {
-            cout << "Working on point " << i << ": (" << points[i].x << ", " << points[i].y << ")" << endl;
-
-            Point p = points[i];
-            if (!p.inserted)
+            if (!points[i].inserted)
             {
-                for (size_t j = 0; j < triangles.size(); j++)
+                // alreadyEntered controlla se un punto di bordo è già stato valutato da
+                bool alreadyEntered = false;
+                for (unsigned int j = 0; j < triangles.size(); j++)
                 {
                     Triangle t = triangles[j];
                     // L'iterazione va fatta solo sui triangoli attivi (se non è attivo, la seconda condizione non viene nemmeno verificata)
-                    if (t.active && t.TriangleContainsPoint(p))
+                    int pointInTriangle = t.TriangleContainsPoint(i, *this);
+                    if (t.active && pointInTriangle != 0)
                     {
                         vector<int> trianglesToCheckIds;
-                        Point* a = t.vertices[0];
-                        Point* b = t.vertices[1];
-                        Point* c = t.vertices[2];
+                        int a = t.idVertices[0];
+                        int b = t.idVertices[1];
+                        int c = t.idVertices[2];
 
                         // Se t è ordinato allora anche t1, t2, e t3 saranno ordinati.
-                        Triangle t1 = Triangle(*a, *b, p);
-                        Triangle t2 = Triangle(*b, *c, p);
-                        Triangle t3 = Triangle(*c, *a, p);
+                        Triangle t1 = Triangle(a, b, i, this);
+                        Triangle t2 = Triangle(b, c, i, this);
+                        Triangle t3 = Triangle(c, a, i, this);
+
+                        // Ho frammentato in tre nuovi triangoli il triangolo triangles[j] --> lo disattivo
+                        triangles[j].active = false;
 
                         // Devo verificare che la condizione di Delaunay sia rispettata per i tre nuovi triangoli
                         // Sicuramente la condizione è rispettata tra coppie di due nuovi triangoli, ma non è detto che sia rispettata con gli altri
                         // già esistenti.
                         // Controllo se ho creato un triangolo degenere, e nel caso non lo salvo.
-                        if (t1.Area() != 0)
+                        // Se il triangolo è degenere, un suo lato verrà spezzato in due nuovi lati, dunque lo disattivo.
+                        if (t1.Area(this) != 0)
                         {
                             int idT1 = AddTriangle(t1);
                             trianglesToCheckIds.push_back(idT1);
                         }
+                        else
+                        {
+                            for (unsigned int k = 0; k < t.idEdges.size(); k++)
+                            {
+                                if ( ( edges[t.idEdges[k]].idOrigin == a && edges[t.idEdges[k]].idEnd == b ) ||
+                                     ( edges[t.idEdges[k]].idOrigin == b && edges[t.idEdges[k]].idEnd == a ) )
 
-                        if (t2.Area() != 0)
+                                    edges[t.idEdges[k]].active = false;
+                            }
+                        }
+
+                        if (t2.Area(this) != 0)
                         {
                             int idT2 = AddTriangle(t2);
                             trianglesToCheckIds.push_back(idT2);
                         }
+                        else
+                        {
+                            for (unsigned int k = 0; k < t.idEdges.size(); k++)
+                            {
+                                if ( ( edges[t.idEdges[k]].idOrigin == c && edges[t.idEdges[k]].idEnd == b ) ||
+                                     ( edges[t.idEdges[k]].idOrigin == b && edges[t.idEdges[k]].idEnd == c ) )
 
-                        if (t3.Area() != 0)
+                                    edges[t.idEdges[k]].active = false;
+                            }
+                        }
+
+                        if (t3.Area(this) != 0)
                         {
                             int idT3 = AddTriangle(t3);
                             trianglesToCheckIds.push_back(idT3);
+                        }
+                        else
+                        {
+                            for (unsigned int k = 0; k < t.idEdges.size(); k++)
+                            {
+                                if ( ( edges[t.idEdges[k]].idOrigin == a && edges[t.idEdges[k]].idEnd == c ) ||
+                                     ( edges[t.idEdges[k]].idOrigin == c && edges[t.idEdges[k]].idEnd == a ) )
+
+                                    edges[t.idEdges[k]].active = false;
+                            }
                         }
 
                         while(!trianglesToCheckIds.empty())
@@ -353,7 +334,7 @@ namespace DelaunayTriangle
                             // cerco gli id dei triangoli adiacenti a quello che sto controllando. Se Dalaunay non è verificato, eseguo il
                             // flip e sistemo la nuova mesh.
                             vector<int> adjs = GetAdjacencies(triangleToCheck);
-                            for (size_t k = 0; k < adjs.size(); k++)
+                            for (unsigned int k = 0; k < adjs.size(); k++)
                             {
                                 int adj = adjs[k];
                                 int flippedT1 = -1;
@@ -369,9 +350,18 @@ namespace DelaunayTriangle
                             }
                         }
 
+                        // Per i punti di bordo
+                        if (!alreadyEntered && pointInTriangle == 2)
+                        {
+                            // Se il punto era di bordo per un triangolo, c'è la possibilità che lo sia anche per un altro (a meno che non faccia
+                            // parte della pseudoricopertura convessa) --> continuo il ciclo for sui triangoli per concludere il suo inserimento
+                            // il punto è condiviso da al massimo due triangoli --> entrato una volta in questo if, non ha più senso rientrarci
+
+                            alreadyEntered = true;
+                            continue;
+                        }
+
                         points[i].inserted = true;
-                        // Ho frammentato in tre nuovi triangoli il triangolo triangles[j] --> lo disattivo
-                        triangles[j].active = false;
                         break;
                     }
                 }
@@ -380,18 +370,17 @@ namespace DelaunayTriangle
     }
 
 
-    // Il debugger si schianta in questa funzione
-    vector<int> Mesh::GetAdjacencies(int sourceId)
+    vector<int> Mesh::GetAdjacencies(int idSource)
     {
         vector<int> adjacentIds;
-        for (size_t i = 0; i < 3; i++)  // itero sui lati del triangolo
+        for (unsigned int i = 0; i < 3; i++)  // itero sui lati del triangolo
         {
-            int edgeId = triangles[sourceId].idEdges[i];
-            for (size_t j = 0; j < edges[edgeId].idTriangles.size(); j++)   // itero sui triangoli che possiedono quel lato
+            int edgeId = triangles[idSource].idEdges[i];
+            for (unsigned int j = 0; j < edges[edgeId].idTriangles.size(); j++)   // itero sui triangoli che possiedono quel lato
             {
                 int triangleId = edges[edgeId].idTriangles[j];   // id di un triangolo costruito con il lato edges[edgeId]
 
-                if (triangleId == sourceId)
+                if (triangleId == idSource)
                 {
                     // se sto confrontando con me stesso
                     // salto direttamente al ciclo successivo (continue fa proprio questo)
@@ -415,16 +404,14 @@ namespace DelaunayTriangle
     bool Mesh::DelaunayCondition(int t1, int t2, int& flippedT1, int& flippedT2)
     {
         bool flipped = false;
-        // flippedT1 = -1;
-        // flippedT2 = -1;
 
         // gli id dei punti che compongono t1 e t2
-        int a1 = triangles[t1].vertices[0]->id;
-        int b1 = triangles[t1].vertices[1]->id;
-        int c1 = triangles[t1].vertices[2]->id;
-        int a2 = triangles[t2].vertices[0]->id;
-        int b2 = triangles[t2].vertices[1]->id;
-        int c2 = triangles[t2].vertices[2]->id;
+        int a1 = triangles[t1].idVertices[0];
+        int b1 = triangles[t1].idVertices[1];
+        int c1 = triangles[t1].idVertices[2];
+        int a2 = triangles[t2].idVertices[0];
+        int b2 = triangles[t2].idVertices[1];
+        int c2 = triangles[t2].idVertices[2];
 
         int commonEdge = -1;
         array<int, 3> edges1 = triangles[t1].idEdges;
@@ -433,13 +420,13 @@ namespace DelaunayTriangle
         {
             for( int e2 : edges2 )
             {
-                if( e1 == e2 )
+                if(e1 == e2)
                 {
                     commonEdge = e1;
                     break;
                 }
             }
-            if( commonEdge != -1 )
+            if(commonEdge != -1)
                 break;
         }
 
@@ -468,15 +455,15 @@ namespace DelaunayTriangle
 
         // Verifico se l'ipotesi di Delaunay è soddisfatta.
         // Caso in cui l'ipotesi non è soddisfatta --> Eseguire l'operazione di flip.
-        if (angle1 + angle2 > M_PI)
+        if (angle1 + angle2 > M_PI + 0.0001)
         {
             // creo il nuovo lato e lo aggiungo alla mesh
             Edge newEdge = Edge(notShared1, notShared2);
             AddEdge(newEdge);
 
             // creo i due nuovi triangoli "flippati" e li aggiungo alla mesh
-            Triangle newTriangle1 = Triangle(points[notShared1], points[notShared2], points[sharedVertex1]);
-            Triangle newTriangle2 = Triangle(points[notShared1], points[notShared2], points[sharedVertex2]);
+            Triangle newTriangle1 = Triangle(notShared1, notShared2, sharedVertex1, this);
+            Triangle newTriangle2 = Triangle(notShared1, notShared2, sharedVertex2, this);
             flippedT1 = AddTriangle(newTriangle1);
             flippedT2 = AddTriangle(newTriangle2);
 
@@ -505,15 +492,15 @@ namespace DelaunayTriangle
 
         // Caso base: se ci sono solo tre punti, il triangolo di area massima è l'unico triangolo possibile
         if (end - start == 2) {
-            return Triangle(points[start], points[start + 1], points[start + 2]);
+            return Triangle(start, start + 1, start + 2, this);
         }
 
         // Divido i punti in due gruppi. Trovo ricorsivamente la massima area per i punti di un set e dell'altro
         int mid = start + (end - start) / 2;
         Triangle leftMaxTriangle = GetMaxAreaTriangle(points, start, mid);
-        double leftMaxArea = leftMaxTriangle.Area();
+        double leftMaxArea = leftMaxTriangle.Area(this);
         Triangle rightMaxTriangle = GetMaxAreaTriangle(points, mid, end);
-        double rightMaxArea = rightMaxTriangle.Area();
+        double rightMaxArea = rightMaxTriangle.Area(this);
 
         // Trovo l'area massima per i triangoli formati da punti provenienti da entrambi i set
         double crossMax = 0.0;
@@ -521,8 +508,8 @@ namespace DelaunayTriangle
         int left = mid - 1, right = mid + 1;
         while (left >= start && right < end)
         {
-            crossMaxTriangle = Triangle(points[left], points[mid], points[right]);
-            crossMax = max(crossMax, crossMaxTriangle.Area());
+            crossMaxTriangle = Triangle(left, mid, right, this);
+            crossMax = max(crossMax, crossMaxTriangle.Area(this));
             if (left == start)
             {
                 right++;
@@ -533,8 +520,8 @@ namespace DelaunayTriangle
             }
             else
             {
-                double area1 = Triangle(points[left - 1], points[left], points[mid]).Area();
-                double area2 = Triangle(points[mid], points[right], points[right + 1]).Area();
+                double area1 = Triangle(left - 1, left, mid, this).Area(this);
+                double area2 = Triangle(mid, right, right + 1, this).Area(this);
                 if (area1 > area2)
                 {
                     left--;

@@ -6,15 +6,19 @@
 #include <sstream>
 #include "Eigen/Eigen"
 
-
 using namespace std;
+using namespace Eigen;
 
 // COMMENTO GUIDA: In questo file (e nel suo corrispettivo .cpp) sono state inseriti i contenuti delle struct Point e Triangle del file "versione1annalisa_class.hpp".
 // Il file "versione1annalisa_class.hpp" contiene ancora tutto al suo interno.
-// Le funzioni del file "versione1annalisa_class.hpp" che stanno sotto alla struct Triangle NON sono ancora state scritte da nessun'altra parte.
 
 namespace DelaunayTriangle
 {
+    //constexpr double max_tolerance(const double& x, const double& y)
+    //{
+    //    return x > y ? x : y;
+    //}
+
     struct Mesh;   // serve perchè alla struct Edge e Triangle serve vedere la mesh
 
     struct Point
@@ -22,6 +26,10 @@ namespace DelaunayTriangle
         int id;
         double x, y;
         bool inserted = false;  // true se il punto è stato già utilizzato per costruire i triangoli, false altrimenti
+
+        //static constexpr double geometricTol = 1.0e-12;
+        //static constexpr double geometricTol_Squared = max_tolerance(Point::geometricTol * Point::geometricTol,
+        //                                                             numeric_limits<double>::epsilon());
     };
 
     struct Edge
@@ -33,33 +41,33 @@ namespace DelaunayTriangle
         // Altro metodo consigliato da Teora: memorizzare idTriangles nella struct mesh
         bool active = false;
 
-        Edge() = default;                        // costruttore vuoto
-        Edge(int a, int b);                      // input: id dei due punti estremi del segmento
-        Edge(Point& a, Point& b);                // input: i due punti estremi del segmento
-        Edge(Point& a, Point& b, Mesh& mesh);    // input: due punti estremi del segmento, la mesh. AD ORA, NON E' UTILIZZATO
+        Edge() = default;         // costruttore vuoto
+
+        ///\param idPoint1: un estremo del segmento
+        ///\param idPoint2: un estremo del segmento
+        Edge(int idPoint1, int idPoint2);
     };
 
 
     struct Triangle
     {
         int id;
-
-        // array di 3 puntatori a elementi della struct Point (= i 3 vertici del triangolo considerato)
-        // N.B.: Sarebbe meglio convertirlo a " array<int, 3> idVertices "
-        array<Point*, 3> vertices;
-
-        // array di 3 interi (= gli id dei lati che compongono il triangolo)
-        array<int, 3> idEdges;
-
+        array<int, 3> idVertices;     // array di 3 interi (= gli id dei punti che sono i vertici del triangolo)
+        array<int, 3> idEdges;        // array di 3 interi (= gli id dei lati che compongono il triangolo)
         bool active = false;
 
-        Triangle() = default;                                 // costruttore vuoto
-        Triangle(Point& a, Point& b, Point& c);               // input: i tre punti che compongono i vertici del triangolo
-        Triangle(Point& a, Point& b, Point& c, Mesh& mesh);   // input: i tre punti che compongono i vertici del triangolo e la mesh. AD ORA, NON UTILIZZATO
+        Triangle() = default;       // costruttore vuoto
+
+        ///\param a: id di un vertice
+        ///\param b: id di un vertice
+        ///\param c: id di un vertice
+        ///\param mesh: la mesh che stiamo riempiendo
+        Triangle(int a, int b, int c, Mesh* mesh);   // input: i tre id dei punti che compongono i vertici del triangolo e la mesh.
 
         ///\brief ordina i vertici del triangolo in senso antiorario. Il controllo avviene con il prodotto vettoriale
-        ///\param vertices: array di tre elementi di tipo Point, che sono i vertici del triangolo
-        void OrderTrianglePoints( array<Point*, 3>& vertices );
+        ///\param vertices: array di tre elementi di tipo int, che sono gli id dei vertici del triangolo
+        ///\param mesh: la mesh che stiamo costruendo
+        void OrderTrianglePoints(array<int ,3>& vertices, const Mesh& mesh);
 
         /* CONSIDERAZIONI SU const posto dopo un metodo:
         La parola "const" scritta alla fine della dichiarazione del metodo "area()" e "circoContainsPoint()" e "triangleContainsPoint()"
@@ -68,20 +76,23 @@ namespace DelaunayTriangle
         L'utilizzo della parola "const" consente anche di chiamare il metodo su oggetti "const Triangle", che sono oggetti che non possono essere modificati.*/
 
         ///\brief calcola l'area del triangolo
+        ///\param mesh: la mesh che stiamo costruendo
         ///\return area del triangolo
-        double Area() const;
+        double Area(const Mesh* mesh) const;
 
         ///\brief stabilisce se il punto in input sia interno o meno alla circonferenza circoscritta al triangolo su cui viene richiamata.
-        ///\param un punto della struct Point, oppure le sue coordinate (passate in senso antiorario)
+        ///\param l'id di un punto della struct Point, oppure le sue coordinate (passate in senso antiorario)
+        ///\param mesh: la mesh che stiamo costruendo
         ///\return true se il punto è interno, false se è esterno o di bordo
-        bool CircoContainsPoint(const Point a) const;
-        bool CircoContainsPoint(const double x, const double y) const;   //NOTA BENE: i vertici a,b,c vanno passati in senso antiorario!
+        bool CircoContainsPoint(const int idPoint, const Mesh& mesh) const;
+        bool CircoContainsPoint(const double x, const double y, const Mesh& mesh) const;   //NOTA BENE: i vertici a,b,c vanno passati in senso antiorario!
 
-        ///\brief stabilisce se il punto in input sia interno o meno al riangolo su cui viene richiamata.
-        ///\param un punto della struct Point, oppure le sue coordinate (passate in senso antiorario)
-        ///\return true se il punto è interno, false se è esterno o di bordo
-        bool TriangleContainsPoint(const Point a) const;
-        bool TriangleContainsPoint(const double x, const double y) const;
+        ///\brief stabilisce se il punto in input sia interno, do bordo o esterno al triangolo su cui viene richiamata.
+        ///\param l'id di un punto della struct Point, oppure le sue coordinate (passate in senso antiorario)
+        ///\param mesh: la mesh che stiamo costruendo
+        ///\return 0 se il punto è esterno, 1 se è interno, 2 se è di bordo
+        int TriangleContainsPoint(const int idPoint, const Mesh& mesh) const;
+        int TriangleContainsPoint(const double x, const double y, const Mesh& mesh) const;
     };
 
 
@@ -91,7 +102,7 @@ namespace DelaunayTriangle
         vector<Edge> edges;
         vector<Triangle> triangles;
 
-        Mesh() = default;  // costruttore
+        Mesh() = default;   // costruttore
 
         /// \brief Legge i punti contenuti in Points.csv
         /// \param filePath: path del file di input
@@ -119,30 +130,27 @@ namespace DelaunayTriangle
         void GenerateMesh();
 
         /// \brief Trova gli id dei triangoli adiacenti al triangolo di cui ho passato l'id
-        /// \param source: id del triangolo di cui voglio trovare le adiacenze
+        /// \param idTriangle: id del triangolo di cui voglio trovare le adiacenze
         /// \return il vettore di interi contenente gli id dei triangoli adiacenti
-        vector<int> GetAdjacencies(int source);
+        vector<int> GetAdjacencies(int idTriangle);
 
         /// \brief Controlla se la condizione di Delaunay tra due triangoli è rispettata e nel caso esegue il flip
         /// \param t1 e t2: id di due triangoli adiacenti
         /// \return true se il flip è avvenuto, false altrimenti
-        bool DelaunayCondition( int t1, int t2, int& flippedT1, int& flippedT2 );
+        bool DelaunayCondition(int t1, int t2, int& flippedT1, int& flippedT2);
     };
 
 
     ///\brief Calcola la distanza tra due punti
     ///\param Due punti
     ///\return La distanza tra i due punti
-    double Distance(const Point p1,
-                    const Point p2);
+    double Distance(const Point p1, const Point p2);
 
 
     ///\brief Calcola l'angolo tra tre punti, corrispondente all'angolo al vertice nel primo dei punti passati (p1)
     ///\param Tre punti (corrispondenti ai vertici del triangolo): p1, p2, p3
     ///\return Il valore dell'angolo al vertice p1.
-    double CalculateAngle(const Point p1,
-                          const Point p2,
-                          const Point p3);
+    double CalculateAngle(const Point p1,  const Point p2, const Point p3);
 
 }
 
