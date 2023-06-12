@@ -7,7 +7,6 @@ using namespace std;
 using namespace DelaunayTriangle;
 
 
-
 int main()
 {
     Mesh mesh;  // inizializzazione mesh
@@ -20,41 +19,25 @@ int main()
         return -1;
     }
 
-    // Trovo il triangolo di area massima. Lo inserisco tra i triangoli della triangolazione
-    Triangle maxTriangle = mesh.GetMaxAreaTriangle(mesh.points, 0, mesh.points.size());
+    // Creo un triangolo fittizio (i suoi vertici non sono necessariamente punti reali) che contenga tutti i punti della mesh.
+    // Aggiungo il triangolo alla triangolazione.
+    Triangle maxTriangle = mesh.FakeTriangleCover();
     mesh.AddTriangle(maxTriangle);
 
-    // Contrassegno i punti del triangolo di area massima come inseriti nella mesh
-    for (unsigned int i = 0; i < 3; i++)
-    {
-        mesh.points[ mesh.triangles[0].idVertices[i] ].inserted = true;
-    }
-
-    // Costruisco la pseudo ricopertura convessa ( TO DO fare una ricopertura vera invece di questa farsa. Così abbiamo solo aggiunto il triangolo
-    // con vertici (0,0), (0,1), (1,1) )
-    Triangle t = Triangle(0, 2, 3, &mesh);
-    mesh.AddTriangle(t);
-    for (unsigned int i = 0; i < 3; i++)
-    {
-        mesh.points[ mesh.triangles[1].idVertices[i] ].inserted = true;
-    }
-
-    // Inserisco nella triangolazione i punti interni
+    // Inserisco nella triangolazione tutti i punti, che ora saranno tutti interni
     mesh.GenerateMesh();
+
+    cout << "Costruzione della mesh terminata." << endl;
+
+    // Disattivo lati e triangoli costruiti con i vertici fittizi
+    mesh.DeactivateFakeTriangles();
+
+    cout << "Disattivazione triangoli fittizi terminata." << endl;
 
     // Stampo per verifiche
     cout << "Numero di punti: " << mesh.points.size() << endl;
     cout << "Numero di edge: " << mesh.edges.size() << endl;
     cout << "Numero di triangoli: " << mesh.triangles.size() << endl;
-
-    cout << "Costruzione della mesh terminata." << endl;
-    /*for( size_t i = 0; i < mesh.edges.size(); i++ )
-    {
-        //if ( mesh.edges[i].active == true )
-        cout << "Edge " << i << ": (" << mesh.points[mesh.edges[i].idOrigin].x << ", " << mesh.points[mesh.edges[i].idOrigin].y
-                 << ") -> (" << mesh.points[mesh.edges[i].idEnd].x << ", " << mesh.points[mesh.edges[i].idEnd].y << ")" << "    Stato: "<<
-                 mesh.edges[i].active << endl;
-    }*/
 
     return 0;
 }

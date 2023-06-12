@@ -5,8 +5,8 @@ using namespace Eigen;
 namespace DelaunayTriangle
 {
     /// Costruttore di Edge
-
-    Edge::Edge(int idPoint1, int idPoint2)
+    ///
+    Edge::Edge(int& idPoint1, int& idPoint2)
     {
         idOrigin = idPoint1;
         idEnd = idPoint2;
@@ -245,242 +245,6 @@ namespace DelaunayTriangle
     }
 
 
-    void Mesh::GenerateMesh()
-    {
-        for (unsigned int i = 0; i < points.size(); i++)   // itero sui punti della mesh
-        {
-            if (!points[i].inserted)
-            {
-                // alreadyEntered controlla se un punto di bordo è già stato valutato da
-                bool alreadyEntered = false;
-                for (unsigned int j = 0; j < triangles.size(); j++)
-                {
-                    Triangle t = triangles[j];
-                    // L'iterazione va fatta solo sui triangoli attivi (se non è attivo, la seconda condizione non viene nemmeno verificata)
-                    int pointInTriangle = t.TriangleContainsPoint(i, *this);
-                    if (t.active && pointInTriangle != 0)
-                    {
-                        vector<int> trianglesToCheckIds;
-                        int a = t.idVertices[0];
-                        int b = t.idVertices[1];
-                        int c = t.idVertices[2];
-
-                        // Se t è ordinato allora anche t1, t2, e t3 saranno ordinati.
-                        Triangle t1 = Triangle(a, b, i, this);
-                        Triangle t2 = Triangle(b, c, i, this);
-                        Triangle t3 = Triangle(c, a, i, this);
-
-                        // Ho frammentato in tre nuovi triangoli il triangolo triangles[j] --> lo disattivo
-                        triangles[j].active = false;
-
-                        // Devo verificare che la condizione di Delaunay sia rispettata per i tre nuovi triangoli
-                        // Sicuramente la condizione è rispettata tra coppie di due nuovi triangoli, ma non è detto che sia rispettata con gli altri
-                        // già esistenti.
-                        // Controllo se ho creato un triangolo degenere, e nel caso non lo salvo.
-                        // Se il triangolo è degenere, un suo lato verrà spezzato in due nuovi lati, dunque lo disattivo.
-                        if (t1.Area(this) != 0)
-                        {
-                            int idT1 = AddTriangle(t1);
-                            trianglesToCheckIds.push_back(idT1);
-                        }
-                        else
-                        {
-                            for (unsigned int k = 0; k < t.idEdges.size(); k++)
-                            {
-                                if ( ( edges[t.idEdges[k]].idOrigin == a && edges[t.idEdges[k]].idEnd == b ) ||
-                                     ( edges[t.idEdges[k]].idOrigin == b && edges[t.idEdges[k]].idEnd == a ) )
-
-                                    edges[t.idEdges[k]].active = false;
-                            }
-                        }
-
-                        if (t2.Area(this) != 0)
-                        {
-                            int idT2 = AddTriangle(t2);
-                            trianglesToCheckIds.push_back(idT2);
-                        }
-                        else
-                        {
-                            for (unsigned int k = 0; k < t.idEdges.size(); k++)
-                            {
-                                if ( ( edges[t.idEdges[k]].idOrigin == c && edges[t.idEdges[k]].idEnd == b ) ||
-                                     ( edges[t.idEdges[k]].idOrigin == b && edges[t.idEdges[k]].idEnd == c ) )
-
-                                    edges[t.idEdges[k]].active = false;
-                            }
-                        }
-
-                        if (t3.Area(this) != 0)
-                        {
-                            int idT3 = AddTriangle(t3);
-                            trianglesToCheckIds.push_back(idT3);
-                        }
-                        else
-                        {
-                            for (unsigned int k = 0; k < t.idEdges.size(); k++)
-                            {
-                                if ( ( edges[t.idEdges[k]].idOrigin == a && edges[t.idEdges[k]].idEnd == c ) ||
-                                     ( edges[t.idEdges[k]].idOrigin == c && edges[t.idEdges[k]].idEnd == a ) )
-
-                                    edges[t.idEdges[k]].active = false;
-                            }
-                        }
-
-                        while(!trianglesToCheckIds.empty())
-                        {
-                            int triangleToCheck = trianglesToCheckIds.back();   // ritorna l'ultimo elemento del vettore
-                            trianglesToCheckIds.pop_back();    // rimuove l'ultimo elemento di trianglesToCheck e riduce la sua dimensione di 1
-
-                            // cerco gli id dei triangoli adiacenti a quello che sto controllando. Se Dalaunay non è verificato, eseguo il
-                            // flip e sistemo la nuova mesh.
-                            vector<int> adjs = GetAdjacencies(triangleToCheck);
-                            for (unsigned int k = 0; k < adjs.size(); k++)
-                            {
-                                int adj = adjs[k];
-                                int flippedT1 = -1;
-                                int flippedT2 = -1;
-                                bool flipped = DelaunayCondition(triangleToCheck, adj, flippedT1, flippedT2);
-                                if (flipped)
-                                {
-                                    // Se entro nell'if, fllippedT1 e flippedT2 non valgono -1, ma contengono gli id dei due nuovi triangoli creati da DelaunayCondition
-                                    trianglesToCheckIds.push_back(flippedT1);
-                                    trianglesToCheckIds.push_back(flippedT2);
-                                    break;
-                                }
-                            }
-                        }
-
-                        // Per i punti di bordo
-                        if (!alreadyEntered && pointInTriangle == 2)
-                        {
-                            // Se il punto era di bordo per un triangolo, c'è la possibilità che lo sia anche per un altro (a meno che non faccia
-                            // parte della pseudoricopertura convessa) --> continuo il ciclo for sui triangoli per concludere il suo inserimento
-                            // il punto è condiviso da al massimo due triangoli --> entrato una volta in questo if, non ha più senso rientrarci
-
-                            alreadyEntered = true;
-                            continue;
-                        }
-
-                        points[i].inserted = true;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-
-    vector<int> Mesh::GetAdjacencies(int idSource)
-    {
-        vector<int> adjacentIds;
-        for (unsigned int i = 0; i < 3; i++)  // itero sui lati del triangolo
-        {
-            int edgeId = triangles[idSource].idEdges[i];
-            for (unsigned int j = 0; j < edges[edgeId].idTriangles.size(); j++)   // itero sui triangoli che possiedono quel lato
-            {
-                int triangleId = edges[edgeId].idTriangles[j];   // id di un triangolo costruito con il lato edges[edgeId]
-
-                if (triangleId == idSource)
-                {
-                    // se sto confrontando con me stesso
-                    // salto direttamente al ciclo successivo (continue fa proprio questo)
-                    continue;
-                }
-
-                if (!triangles[triangleId].active)
-                {
-                    continue;
-                }
-
-                // Se sono arrivato qui, non sto prendendo il triangolo triangles[sourceId] come adiacente a sé stesso e sto valutando solo
-                // triangoli attivi.
-                adjacentIds.push_back(triangleId);
-            }
-        }
-        return adjacentIds;
-    }
-
-
-    bool Mesh::DelaunayCondition(int t1, int t2, int& flippedT1, int& flippedT2)
-    {
-        bool flipped = false;
-
-        // gli id dei punti che compongono t1 e t2
-        int a1 = triangles[t1].idVertices[0];
-        int b1 = triangles[t1].idVertices[1];
-        int c1 = triangles[t1].idVertices[2];
-        int a2 = triangles[t2].idVertices[0];
-        int b2 = triangles[t2].idVertices[1];
-        int c2 = triangles[t2].idVertices[2];
-
-        int commonEdge = -1;
-        array<int, 3> edges1 = triangles[t1].idEdges;
-        array<int, 3> edges2 = triangles[t2].idEdges;
-        for( int e1 : edges1 )      // come for (oggetto in lista) di python
-        {
-            for( int e2 : edges2 )
-            {
-                if(e1 == e2)
-                {
-                    commonEdge = e1;
-                    break;
-                }
-            }
-            if(commonEdge != -1)
-                break;
-        }
-
-        int sharedVertex1 = edges[commonEdge].idOrigin;
-        int sharedVertex2 = edges[commonEdge].idEnd;
-
-        int notShared1 = -1;
-        if (a1 != sharedVertex1 && a1 != sharedVertex2)
-            notShared1 = a1;
-        else if (b1 != sharedVertex1 && b1 != sharedVertex2)
-            notShared1 = b1;
-        else if (c1 != sharedVertex1 && c1 != sharedVertex2)
-            notShared1 = c1;
-
-        int notShared2 = -1;
-        if (a2 != sharedVertex1 && a2 != sharedVertex2)
-            notShared2 = a2;
-        else if (b2 != sharedVertex1 && b2 != sharedVertex2)
-            notShared2 = b2;
-        else if (c2 != sharedVertex1 && c2 != sharedVertex2)
-            notShared2 = c2;
-
-        // Calcolo gli angoli al vertice per notShared1 e notShared2.
-        double angle1 = CalculateAngle(points[notShared1], points[sharedVertex1], points[sharedVertex2]);
-        double angle2 = CalculateAngle(points[notShared2], points[sharedVertex1], points[sharedVertex2]);
-
-        // Verifico se l'ipotesi di Delaunay è soddisfatta.
-        // Caso in cui l'ipotesi non è soddisfatta --> Eseguire l'operazione di flip.
-        if (angle1 + angle2 > M_PI + 0.0001)
-        {
-            // creo il nuovo lato e lo aggiungo alla mesh
-            Edge newEdge = Edge(notShared1, notShared2);
-            AddEdge(newEdge);
-
-            // creo i due nuovi triangoli "flippati" e li aggiungo alla mesh
-            Triangle newTriangle1 = Triangle(notShared1, notShared2, sharedVertex1, this);
-            Triangle newTriangle2 = Triangle(notShared1, notShared2, sharedVertex2, this);
-            flippedT1 = AddTriangle(newTriangle1);
-            flippedT2 = AddTriangle(newTriangle2);
-
-            // Disabilito i due triangoli di origine
-            triangles[t1].active = false;
-            triangles[t2].active = false;
-
-            // Disabilito il vecchio edge
-            edges[commonEdge].active = false;
-
-            flipped = true;
-        }
-
-        return flipped;
-    }
-
-
     Triangle Mesh::GetMaxAreaTriangle(vector<Point>& points, int start, int end)
     {
         // Se ci sono meno di due punti, l'area non può essere calcolata e quindi il processo ritorna il triangolo di area nulla, che
@@ -544,10 +308,350 @@ namespace DelaunayTriangle
     }
 
 
+    Triangle Mesh::FakeTriangleCover()
+    {
+        // Cerco max x, max y, min x, min y
+        double xMin = points[0].x, xMax = points[0].x;
+        double yMin = points[0].y, yMax = points[0].y;
+        for ( Point p : points )
+        {
+            if( p.x < xMin )
+                xMin = p.x;
+            if( p.x > xMax )
+                xMax = p.x;
+            if( p.y < yMin )
+                yMin = p.y;
+            if( p.y > yMax )
+                yMax = p.y;
+        }
+
+        // Controllo se i punti del maxi-triangolo che voglio costruire coincidono con dei punti reali o se sono fittizi
+        bool existsCoord1 = false;
+        bool existsCoord2 = false;
+        bool existsCoord3 = false;
+        int id1, id2, id3;     // id dei tre vertici (fittizi o non) che concorrono a formare il triangolo che ricopre tutto il set di punti
+        for ( Point p : points )
+        {
+            if ( xMin == p.x && yMin == p.y )
+            {
+                existsCoord1 = true;
+                id1 = p.id;
+            }
+            if ( xMin == p.x && 2 * yMax - yMin == p.y )
+            {
+                existsCoord2 = true;
+                id2 = p.id;
+            }
+            if ( 2 * xMax - xMin == p.x && yMin == p.y )
+            {
+                existsCoord3 = true;
+                id3 = p.id;
+            }
+        }
+
+        if ( !existsCoord1 )
+        {
+            Point coord1;
+            coord1.id = points.size(); coord1.x = xMin; coord1.y = yMin;
+            points.push_back( coord1 );
+            id1 = coord1.id;
+            coord1.actualPoint = false;
+        }
+        if ( !existsCoord2 )
+        {
+            Point coord2;
+            coord2.id = points.size(); coord2.x = xMin; coord2.y = 2 * yMax - yMin;
+            points.push_back( coord2 );
+            id2 = coord2.id;
+            coord2.actualPoint = false;
+        }
+        if ( !existsCoord3 )
+        {
+            Point coord3;
+            coord3.id = points.size(); coord3.x = 2 * xMax - xMin; coord3.y = yMin;
+            points.push_back( coord3 );
+            id3 = coord3.id;
+            coord3.actualPoint = false;
+        }
+
+        // Triangolo che ricopre interamente tutto il set di punti
+        Triangle coverTriangle = Triangle(id1, id2, id3, this);
+
+        return coverTriangle;
+    }
+
+
+    vector<int> Mesh::GetAdjacencies(const int& idSource)
+    {
+        vector<int> adjacentIds;
+        for (unsigned int i = 0; i < 3; i++)  // itero sui lati del triangolo
+        {
+            int edgeId = triangles[idSource].idEdges[i];
+            for (unsigned int j = 0; j < edges[edgeId].idTriangles.size(); j++)   // itero sui triangoli che possiedono quel lato
+            {
+                int triangleId = edges[edgeId].idTriangles[j];   // id di un triangolo costruito con il lato edges[edgeId]
+
+                if (triangleId == idSource)
+                {
+                    // se sto confrontando con me stesso
+                    // salto direttamente al ciclo successivo (continue fa proprio questo)
+                    continue;
+                }
+
+                if (!triangles[triangleId].active)
+                {
+                    continue;
+                }
+
+                // Se sono arrivato qui, non sto prendendo il triangolo triangles[sourceId] come adiacente a sé stesso e sto valutando solo
+                // triangoli attivi.
+                adjacentIds.push_back(triangleId);
+            }
+        }
+        return adjacentIds;
+    }
+
+
+    bool Mesh::DelaunayCondition(const int& t1, const int& t2, int& flippedT1, int& flippedT2)
+    {
+        bool flipped = false;
+
+        // gli id dei punti che compongono t1 e t2
+        int a1 = triangles[t1].idVertices[0];
+        int b1 = triangles[t1].idVertices[1];
+        int c1 = triangles[t1].idVertices[2];
+        int a2 = triangles[t2].idVertices[0];
+        int b2 = triangles[t2].idVertices[1];
+        int c2 = triangles[t2].idVertices[2];
+
+        int commonEdge = -1;
+        array<int, 3> edges1 = triangles[t1].idEdges;
+        array<int, 3> edges2 = triangles[t2].idEdges;
+        for( int e1 : edges1 )      // come for (oggetto in lista) di python
+        {
+            for( int e2 : edges2 )
+            {
+                if(e1 == e2)
+                {
+                    commonEdge = e1;
+                    break;
+                }
+            }
+            if(commonEdge != -1)
+                break;
+        }
+
+        int sharedVertex1 = edges[commonEdge].idOrigin;
+        int sharedVertex2 = edges[commonEdge].idEnd;
+
+        int notShared1 = -1;
+        if (a1 != sharedVertex1 && a1 != sharedVertex2)
+            notShared1 = a1;
+        else if (b1 != sharedVertex1 && b1 != sharedVertex2)
+            notShared1 = b1;
+        else if (c1 != sharedVertex1 && c1 != sharedVertex2)
+            notShared1 = c1;
+
+        int notShared2 = -1;
+        if (a2 != sharedVertex1 && a2 != sharedVertex2)
+            notShared2 = a2;
+        else if (b2 != sharedVertex1 && b2 != sharedVertex2)
+            notShared2 = b2;
+        else if (c2 != sharedVertex1 && c2 != sharedVertex2)
+            notShared2 = c2;
+
+        // Calcolo gli angoli al vertice per notShared1 e notShared2.
+        double angle1 = CalculateAngle(points[notShared1], points[sharedVertex1], points[sharedVertex2]);
+        double angle2 = CalculateAngle(points[notShared2], points[sharedVertex1], points[sharedVertex2]);
+
+        // Verifico se l'ipotesi di Delaunay è soddisfatta.
+        // Caso in cui l'ipotesi non è soddisfatta --> Eseguire l'operazione di flip.
+        if (angle1 + angle2 > M_PI + Point::geometricTol)
+        {
+            // creo il nuovo lato e lo aggiungo alla mesh
+            Edge newEdge = Edge(notShared1, notShared2);
+            AddEdge(newEdge);
+
+            // creo i due nuovi triangoli "flippati" e li aggiungo alla mesh
+            Triangle newTriangle1 = Triangle(notShared1, notShared2, sharedVertex1, this);
+            Triangle newTriangle2 = Triangle(notShared1, notShared2, sharedVertex2, this);
+            flippedT1 = AddTriangle(newTriangle1);
+            flippedT2 = AddTriangle(newTriangle2);
+
+            // Disabilito i due triangoli di origine
+            triangles[t1].active = false;
+            triangles[t2].active = false;
+
+            // Disabilito il vecchio edge
+            edges[commonEdge].active = false;
+
+            flipped = true;
+        }
+
+        return flipped;
+    }
+
+
+    void Mesh::GenerateMesh()
+    {
+        for (unsigned int i = 0; i < points.size(); i++)   // itero sui punti della mesh
+        {
+            // alreadyEntered controlla se un punto di bordo è già stato valutato da
+            bool alreadyEntered = false;
+            for (unsigned int j = 0; j < triangles.size(); j++)
+            {
+                Triangle t = triangles[j];
+                // L'iterazione va fatta solo sui triangoli attivi (se non è attivo, la seconda condizione non viene nemmeno verificata)
+                int pointInTriangle = t.TriangleContainsPoint(i, *this);
+                if (t.active && pointInTriangle != 0)
+                {
+                    vector<int> trianglesToCheckIds;
+                    int a = t.idVertices[0];
+                    int b = t.idVertices[1];
+                    int c = t.idVertices[2];
+
+                    // Se t è ordinato allora anche t1, t2, e t3 saranno ordinati.
+                    Triangle t1 = Triangle(a, b, i, this);
+                    Triangle t2 = Triangle(b, c, i, this);
+                    Triangle t3 = Triangle(c, a, i, this);
+
+                    // Ho frammentato in tre nuovi triangoli il triangolo triangles[j] --> lo disattivo
+                    triangles[j].active = false;
+
+                    // Devo verificare che la condizione di Delaunay sia rispettata per i tre nuovi triangoli
+                    // Sicuramente la condizione è rispettata tra coppie di due nuovi triangoli, ma non è detto che sia rispettata con gli altri
+                    // già esistenti.
+                    // Controllo se ho creato un triangolo degenere, e nel caso non lo salvo.
+                    // Se il triangolo è degenere, un suo lato verrà spezzato in due nuovi lati, dunque lo disattivo.
+                    if (t1.Area(this) != 0)
+                    {
+                        int idT1 = AddTriangle(t1);
+                        trianglesToCheckIds.push_back(idT1);
+                    }
+                    else
+                    {
+                        for (unsigned int k = 0; k < t.idEdges.size(); k++)
+                        {
+                            if ( ( edges[t.idEdges[k]].idOrigin == a && edges[t.idEdges[k]].idEnd == b ) ||
+                                ( edges[t.idEdges[k]].idOrigin == b && edges[t.idEdges[k]].idEnd == a ) )
+
+                            edges[t.idEdges[k]].active = false;
+                        }
+                    }
+
+                    if (t2.Area(this) != 0)
+                    {
+                        int idT2 = AddTriangle(t2);
+                        trianglesToCheckIds.push_back(idT2);
+                    }
+                    else
+                    {
+                        for (unsigned int k = 0; k < t.idEdges.size(); k++)
+                        {
+                            if ( ( edges[t.idEdges[k]].idOrigin == c && edges[t.idEdges[k]].idEnd == b ) ||
+                                ( edges[t.idEdges[k]].idOrigin == b && edges[t.idEdges[k]].idEnd == c ) )
+
+                            edges[t.idEdges[k]].active = false;
+                        }
+                    }
+
+                    if (t3.Area(this) != 0)
+                    {
+                        int idT3 = AddTriangle(t3);
+                        trianglesToCheckIds.push_back(idT3);
+                    }
+                    else
+                    {
+                        for (unsigned int k = 0; k < t.idEdges.size(); k++)
+                        {
+                            if ( ( edges[t.idEdges[k]].idOrigin == a && edges[t.idEdges[k]].idEnd == c ) ||
+                                ( edges[t.idEdges[k]].idOrigin == c && edges[t.idEdges[k]].idEnd == a ) )
+
+                            edges[t.idEdges[k]].active = false;
+                        }
+                    }
+
+                    while(!trianglesToCheckIds.empty())
+                    {
+                        int triangleToCheck = trianglesToCheckIds.back();   // ritorna l'ultimo elemento del vettore
+                        trianglesToCheckIds.pop_back();    // rimuove l'ultimo elemento di trianglesToCheck e riduce la sua dimensione di 1
+
+                        // cerco gli id dei triangoli adiacenti a quello che sto controllando. Se Dalaunay non è verificato, eseguo il
+                        // flip e sistemo la nuova mesh.
+                        vector<int> adjs = GetAdjacencies(triangleToCheck);
+                        for (unsigned int k = 0; k < adjs.size(); k++)
+                        {
+                            int adj = adjs[k];
+                            int flippedT1 = -1;
+                            int flippedT2 = -1;
+                            bool flipped = DelaunayCondition(triangleToCheck, adj, flippedT1, flippedT2);
+                            if (flipped)
+                            {
+                                // Se entro nell'if, fllippedT1 e flippedT2 non valgono -1, ma contengono gli id dei due nuovi triangoli creati da DelaunayCondition
+                                trianglesToCheckIds.push_back(flippedT1);
+                                trianglesToCheckIds.push_back(flippedT2);
+                                break;
+                            }
+                        }
+                    }
+
+                    // Per i punti di bordo
+                    if (!alreadyEntered && pointInTriangle == 2)
+                    {
+                        // Se il punto era di bordo per un triangolo, c'è la possibilità che lo sia anche per un altro (a meno che non faccia
+                        // parte della pseudoricopertura convessa) --> continuo il ciclo for sui triangoli per concludere il suo inserimento
+                        // il punto è condiviso da al massimo due triangoli --> entrato una volta in questo if, non ha più senso rientrarci
+
+                        alreadyEntered = true;
+                        continue;
+                    }
+
+                    break;
+                }
+            }
+        }
+    }
+
+
+    void Mesh::DeactivateFakeTriangles()
+    {
+        // Conteggio il numero di punti reali nella mesh
+        int numberActualPoints = 0;
+        for ( Point p : points )
+        {
+            if ( p.actualPoint )
+                numberActualPoints++;
+        }
+
+        // Disattivo i lati che si collegano a vertici fittizi
+        for( unsigned int i = 0; i < edges.size(); i++ )
+        {
+            Edge edge = edges[i];
+            Point start = points[edge.idOrigin];
+            Point end = points[edge.idEnd];
+            // I punti fittizi sono creati dopo la mesh, quindi hanno id superiore a numberActualPoints
+            if( start.id > numberActualPoints && end.id > numberActualPoints )
+                edges[edge.id].active = false;
+        }
+
+        // Disattivo i triangoli che si collegano a vertici fittizi
+        for ( Triangle t : triangles )
+        {
+            if ( t.active )
+            {
+                for ( unsigned int i = 0; i < 3; i++ )
+                {
+                    if ( !edges[t.idEdges[i]].active )
+                        t.active = false;
+                }
+            }
+        }
+    }
+
+
     /// Funzioni esterne alle struct costruite
 
-    double Distance(const Point p1,
-                    const Point p2)
+    double Distance(const Point& p1, const Point& p2)
     {
         double dx = p2.x - p1.x;
         double dy = p2.y - p1.y;
@@ -555,9 +659,7 @@ namespace DelaunayTriangle
     }
 
 
-    double CalculateAngle(const Point p1,
-                          const Point p2,
-                          const Point p3)
+    double CalculateAngle(const Point& p1,  const Point& p2, const Point& p3)
     {
         double d1 = Distance(p2, p3);
         double d2 = Distance(p1, p3);

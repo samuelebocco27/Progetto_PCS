@@ -9,15 +9,13 @@
 using namespace std;
 using namespace Eigen;
 
-// COMMENTO GUIDA: In questo file (e nel suo corrispettivo .cpp) sono state inseriti i contenuti delle struct Point e Triangle del file "versione1annalisa_class.hpp".
-// Il file "versione1annalisa_class.hpp" contiene ancora tutto al suo interno.
 
 namespace DelaunayTriangle
 {
-    //constexpr double max_tolerance(const double& x, const double& y)
-    //{
-    //    return x > y ? x : y;
-    //}
+    constexpr double max_tolerance(const double& x, const double& y)
+    {
+        return x > y ? x : y;
+    }
 
     struct Mesh;   // serve perchè alla struct Edge e Triangle serve vedere la mesh
 
@@ -25,11 +23,11 @@ namespace DelaunayTriangle
     {
         int id;
         double x, y;
-        bool inserted = false;  // true se il punto è stato già utilizzato per costruire i triangoli, false altrimenti
+        bool actualPoint = true;  // false se il punto è fittizio, true altrimenti
 
-        //static constexpr double geometricTol = 1.0e-12;
-        //static constexpr double geometricTol_Squared = max_tolerance(Point::geometricTol * Point::geometricTol,
-        //                                                             numeric_limits<double>::epsilon());
+        static constexpr double geometricTol = 1.0e-12;
+        static constexpr double geometricTol_Squared = max_tolerance(Point::geometricTol * Point::geometricTol,
+                                                                     numeric_limits<double>::epsilon());
     };
 
     struct Edge
@@ -45,7 +43,7 @@ namespace DelaunayTriangle
 
         ///\param idPoint1: un estremo del segmento
         ///\param idPoint2: un estremo del segmento
-        Edge(int idPoint1, int idPoint2);
+        Edge(int& idPoint1, int& idPoint2);
     };
 
 
@@ -67,7 +65,7 @@ namespace DelaunayTriangle
         ///\brief ordina i vertici del triangolo in senso antiorario. Il controllo avviene con il prodotto vettoriale
         ///\param vertices: array di tre elementi di tipo int, che sono gli id dei vertici del triangolo
         ///\param mesh: la mesh che stiamo costruendo
-        void OrderTrianglePoints(array<int ,3>& vertices, const Mesh& mesh);
+        void OrderTrianglePoints(array<int, 3>& vertices, const Mesh& mesh);
 
         /* CONSIDERAZIONI SU const posto dopo un metodo:
         La parola "const" scritta alla fine della dichiarazione del metodo "area()" e "circoContainsPoint()" e "triangleContainsPoint()"
@@ -124,33 +122,40 @@ namespace DelaunayTriangle
         ///\param start: indice da cui iniziare la ricerca dentro points
         ///\param end: indice al quale finire la ricerca dentro points
         ///\return il triangolo di area massima
-        Triangle GetMaxAreaTriangle(vector<Point>& points, int start, int end);
+        Triangle GetMaxAreaTriangle(vector<Point>& points, int start, int end);  // Non più utilizzata se usiamo il triangolo fittizio
 
-        /// \brief Aggiunge i punti interni alla mesh
-        void GenerateMesh();
+        /// \brief Trova un triangolo con vertici fittizi che ricopre tutti i punti della mesh
+        /// \return Un triangolo che contiene tutti i punti della mesh
+        Triangle FakeTriangleCover();
 
         /// \brief Trova gli id dei triangoli adiacenti al triangolo di cui ho passato l'id
         /// \param idTriangle: id del triangolo di cui voglio trovare le adiacenze
         /// \return il vettore di interi contenente gli id dei triangoli adiacenti
-        vector<int> GetAdjacencies(int idTriangle);
+        vector<int> GetAdjacencies(const int& idTriangle);
 
         /// \brief Controlla se la condizione di Delaunay tra due triangoli è rispettata e nel caso esegue il flip
         /// \param t1 e t2: id di due triangoli adiacenti
         /// \return true se il flip è avvenuto, false altrimenti
-        bool DelaunayCondition(int t1, int t2, int& flippedT1, int& flippedT2);
+        bool DelaunayCondition(const int& t1, const int& t2, int& flippedT1, int& flippedT2);
+
+        /// \brief Aggiunge i punti interni alla mesh
+        void GenerateMesh();
+
+        /// \brief Disattiva lati e triangoli costruiti con i vertici fittizi
+        void DeactivateFakeTriangles();
     };
 
 
     ///\brief Calcola la distanza tra due punti
     ///\param Due punti
     ///\return La distanza tra i due punti
-    double Distance(const Point p1, const Point p2);
+    double Distance(const Point& p1, const Point& p2);
 
 
     ///\brief Calcola l'angolo tra tre punti, corrispondente all'angolo al vertice nel primo dei punti passati (p1)
     ///\param Tre punti (corrispondenti ai vertici del triangolo): p1, p2, p3
     ///\return Il valore dell'angolo al vertice p1.
-    double CalculateAngle(const Point p1,  const Point p2, const Point p3);
+    double CalculateAngle(const Point& p1,  const Point& p2, const Point& p3);
 
 }
 
