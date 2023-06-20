@@ -26,8 +26,7 @@ namespace DelaunayTriangle
         bool actualPoint = true;  // false se il punto è fittizio, true altrimenti
 
         static constexpr double geometricTol = 1.0e-12;
-        static constexpr double geometricTol_Squared = max_tolerance(Point::geometricTol * Point::geometricTol,
-                                                                     numeric_limits<double>::epsilon());
+        static constexpr double geometricTol_Squared = max_tolerance(Point::geometricTol * Point::geometricTol, numeric_limits<double>::epsilon());
     };
 
     struct Edge
@@ -143,6 +142,12 @@ namespace DelaunayTriangle
 
         /// \brief Disattiva lati e triangoli costruiti con i vertici fittizi
         void DeactivateFakeTriangles();
+
+        /// \brief Esporta gli edges (attivi) in un file csv. Ogni riga è del tipo "idEdge idOrigin idEnd". La prima riga è l'intestazione.
+        /// \param edges: il vettore contenente gli edges del programma
+        /// \param outputFileName: il file che viene prodotto
+        void ExportEdges(const vector<Edge>& edges, const string& outputFileName);
+
     };
 
 
@@ -157,6 +162,24 @@ namespace DelaunayTriangle
     ///\return Il valore dell'angolo al vertice p1.
     double CalculateAngle(const Point& p1,  const Point& p2, const Point& p3);
 
+
+    inline double normSquared(const double& x, const double& y)
+    {
+        return x * x + y * y;
+    }
+
+
+    inline bool operator == (Point& p, array<double, 2>& coord)
+    {
+        return ( normSquared(p.x - coord[0], p.y - coord[1]) <= Point::geometricTol * Point::geometricTol *
+                                                                          max( normSquared(p.x, p.y), normSquared(coord[0], coord[1]) ) );
+    }
+
+
+    inline bool operator != (Point& p, array<double, 2>& coord)
+    {
+        return !( p == coord );
+    }
 }
 
 #endif // __EMPTY_H

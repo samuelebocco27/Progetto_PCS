@@ -36,7 +36,7 @@ namespace DelaunayTriangle
         // Prodotto vettoriale: vectorAB x vectorAC = (B-A) x (C-A)
         double crossProduct = vectorAB.x() * vectorAC.y() - vectorAB.y() * vectorAC.x();
 
-        if (crossProduct < 0)
+        if (crossProduct < Point::geometricTol_Squared)
         {
             // Scambio il punto B e il punto C
             int temp = vertices[1];
@@ -59,7 +59,7 @@ namespace DelaunayTriangle
         double ab_y = b.y - a.y;
         double ac_x = c.x - a.x;
         double ac_y = c.y - a.y;
-        double area = std::abs(ab_x * ac_y - ab_y * ac_x)*0.5; //(svolgo il prodotto vettoriale con il determinante)
+        double area = std::abs(ab_x * ac_y - ab_y * ac_x)*0.5;    //(svolgo il prodotto vettoriale con il determinante)
 
         return area;
     }
@@ -88,7 +88,7 @@ namespace DelaunayTriangle
                      - (ay - dy) * ( (bx - dx) * elem33 - (cx - dx) * elem23 ) +
                      + elem13 * ( (bx - dx) * (cy - dy) - (by - dy) * (cx - dx) );
 
-        if (det > 0)
+        if (det > Point::geometricTol)
             return true; //il punto è interno alla circonferenza
         else
             return false; //il punto è esterno o di bordo alla circonferenza
@@ -154,7 +154,7 @@ namespace DelaunayTriangle
 
         if (file.fail())
         {
-            cerr << "Errore apertura file" << endl;
+            cerr << "Errore apertura file." << endl;
             return false;
         }
 
@@ -325,6 +325,8 @@ namespace DelaunayTriangle
                 yMax = p.y;
         }
 
+        array<double, 2> p1 = {xMin, yMin}, p2 = {xMin, 2 * yMax - yMin}, p3 = {2 * xMax - xMin, yMin};
+
         // Controllo se i punti del maxi-triangolo che voglio costruire coincidono con dei punti reali o se sono fittizi
         bool existsCoord1 = false;
         bool existsCoord2 = false;
@@ -332,17 +334,17 @@ namespace DelaunayTriangle
         int id1, id2, id3;     // id dei tre vertici (fittizi o non) che concorrono a formare il triangolo che ricopre tutto il set di punti
         for ( Point p : points )
         {
-            if ( xMin == p.x && yMin == p.y )
+            if ( p == p1 )
             {
                 existsCoord1 = true;
                 id1 = p.id;
             }
-            if ( xMin == p.x && 2 * yMax - yMin == p.y )
+            if ( p == p2 )
             {
                 existsCoord2 = true;
                 id2 = p.id;
             }
-            if ( 2 * xMax - xMin == p.x && yMin == p.y )
+            if ( p == p3 )
             {
                 existsCoord3 = true;
                 id3 = p.id;
@@ -352,26 +354,23 @@ namespace DelaunayTriangle
         if ( !existsCoord1 )
         {
             Point coord1;
-            coord1.id = points.size(); coord1.x = xMin; coord1.y = yMin;
+            coord1.id = points.size(); coord1.x = p1[0]; coord1.y = p1[1]; coord1.actualPoint = false;
             points.push_back( coord1 );
             id1 = coord1.id;
-            coord1.actualPoint = false;
         }
         if ( !existsCoord2 )
         {
             Point coord2;
-            coord2.id = points.size(); coord2.x = xMin; coord2.y = 2 * yMax - yMin;
+            coord2.id = points.size(); coord2.x = p2[0]; coord2.y = p2[1]; coord2.actualPoint = false;
             points.push_back( coord2 );
             id2 = coord2.id;
-            coord2.actualPoint = false;
         }
         if ( !existsCoord3 )
         {
             Point coord3;
-            coord3.id = points.size(); coord3.x = 2 * xMax - xMin; coord3.y = yMin;
+            coord3.id = points.size(); coord3.x = p3[0]; coord3.y = p3[1]; coord3.actualPoint = false;
             points.push_back( coord3 );
             id3 = coord3.id;
-            coord3.actualPoint = false;
         }
 
         // Triangolo che ricopre interamente tutto il set di punti
@@ -427,7 +426,7 @@ namespace DelaunayTriangle
         int commonEdge = -1;
         array<int, 3> edges1 = triangles[t1].idEdges;
         array<int, 3> edges2 = triangles[t2].idEdges;
-        for( int e1 : edges1 )      // come for (oggetto in lista) di python
+        for( int e1 : edges1 )      // come " for (oggetto in lista) " di python
         {
             for( int e2 : edges2 )
             {
@@ -523,7 +522,7 @@ namespace DelaunayTriangle
                     // già esistenti.
                     // Controllo se ho creato un triangolo degenere, e nel caso non lo salvo.
                     // Se il triangolo è degenere, un suo lato verrà spezzato in due nuovi lati, dunque lo disattivo.
-                    if (t1.Area(this) != 0)
+                    if (t1.Area(this) > Point::geometricTol_Squared)
                     {
                         int idT1 = AddTriangle(t1);
                         trianglesToCheckIds.push_back(idT1);
@@ -533,13 +532,13 @@ namespace DelaunayTriangle
                         for (unsigned int k = 0; k < t.idEdges.size(); k++)
                         {
                             if ( ( edges[t.idEdges[k]].idOrigin == a && edges[t.idEdges[k]].idEnd == b ) ||
-                                ( edges[t.idEdges[k]].idOrigin == b && edges[t.idEdges[k]].idEnd == a ) )
+                                 ( edges[t.idEdges[k]].idOrigin == b && edges[t.idEdges[k]].idEnd == a ) )
 
                             edges[t.idEdges[k]].active = false;
                         }
                     }
 
-                    if (t2.Area(this) != 0)
+                    if (t2.Area(this) > Point::geometricTol_Squared)
                     {
                         int idT2 = AddTriangle(t2);
                         trianglesToCheckIds.push_back(idT2);
@@ -549,13 +548,13 @@ namespace DelaunayTriangle
                         for (unsigned int k = 0; k < t.idEdges.size(); k++)
                         {
                             if ( ( edges[t.idEdges[k]].idOrigin == c && edges[t.idEdges[k]].idEnd == b ) ||
-                                ( edges[t.idEdges[k]].idOrigin == b && edges[t.idEdges[k]].idEnd == c ) )
+                                 ( edges[t.idEdges[k]].idOrigin == b && edges[t.idEdges[k]].idEnd == c ) )
 
                             edges[t.idEdges[k]].active = false;
                         }
                     }
 
-                    if (t3.Area(this) != 0)
+                    if (t3.Area(this) > Point::geometricTol_Squared)
                     {
                         int idT3 = AddTriangle(t3);
                         trianglesToCheckIds.push_back(idT3);
@@ -565,7 +564,7 @@ namespace DelaunayTriangle
                         for (unsigned int k = 0; k < t.idEdges.size(); k++)
                         {
                             if ( ( edges[t.idEdges[k]].idOrigin == a && edges[t.idEdges[k]].idEnd == c ) ||
-                                ( edges[t.idEdges[k]].idOrigin == c && edges[t.idEdges[k]].idEnd == a ) )
+                                 ( edges[t.idEdges[k]].idOrigin == c && edges[t.idEdges[k]].idEnd == a ) )
 
                             edges[t.idEdges[k]].active = false;
                         }
@@ -614,40 +613,45 @@ namespace DelaunayTriangle
 
 
     void Mesh::DeactivateFakeTriangles()
-    {
-        // Conteggio il numero di punti reali nella mesh
-        int numberActualPoints = 0;
-        for ( Point p : points )
-        {
-            if ( p.actualPoint )
-                numberActualPoints++;
-        }
-
+    {        
         // Disattivo i lati che si collegano a vertici fittizi
         for( unsigned int i = 0; i < edges.size(); i++ )
         {
             Edge edge = edges[i];
-            Point start = points[edge.idOrigin];
-            Point end = points[edge.idEnd];
-            // I punti fittizi sono creati dopo la mesh, quindi hanno id superiore a numberActualPoints
-            if( start.id > numberActualPoints && end.id > numberActualPoints )
-                edges[edge.id].active = false;
-        }
 
-        // Disattivo i triangoli che si collegano a vertici fittizi
-        for ( Triangle t : triangles )
-        {
-            if ( t.active )
+            // I punti fittizi sono creati dopo la mesh, quindi hanno id superiore a numberActualPoints
+            if( edge.active == true &&
+                ( points[edge.idOrigin].actualPoint == false || points[edge.idEnd].actualPoint == false ) )
             {
-                for ( unsigned int i = 0; i < 3; i++ )
-                {
-                    if ( !edges[t.idEdges[i]].active )
-                        t.active = false;
-                }
+                edges[i].active = false;
+
+                // Se il lato era fittizio, allora anche i triangoli che contribuiva a formare lo sono --> disattivo tali triangoli
+                for ( unsigned int idTriangle : edges[i].idTriangles )
+                    triangles[idTriangle].active = false;
             }
         }
     }
 
+
+    void Mesh::ExportEdges(const vector<Edge>& edges, const string& outputFileName)
+    {
+        ofstream file(outputFileName);  // crea il file se non esiste, lo sovrascrive altrimenti.
+
+        if (file.fail())
+        {
+            cerr << "Impossibile aprire il file " << outputFileName << endl;
+        }
+
+        file << "Id xOrigin yOrigin xEnd yEnd" << endl;
+        for (const Edge& edge : edges)
+        {
+            if ( edge.active )
+                file << edge.id << " " << points[edge.idOrigin].x << " " << points[edge.idOrigin].y << " " <<  points[edge.idEnd].x <<
+                        " " << points[edge.idEnd].y << endl;
+        }
+
+        file.close();
+    }
 
     /// Funzioni esterne alle struct costruite
 
