@@ -118,6 +118,7 @@ double Area(const Mesh* mesh) const
 ```
 **Input:**
 - `const Mesh* mesh`: un puntatore costante all'oggetto `Mesh` che contiene i punti.
+
 **Output:**
 - `double`: l'area del triangolo.
 
