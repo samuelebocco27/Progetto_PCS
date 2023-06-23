@@ -1,4 +1,4 @@
-﻿# Namespace DelaunayTriangle
+# Namespace DelaunayTriangle
 
 Il namespace `DelaunayTriangle` contiene le seguenti classi:
 
@@ -35,14 +35,12 @@ struct Edge
     int idOrigin, idEnd;
     vector<int> idTriangles;
     bool active = false;
-
     Edge() = default;
-
     Edge(int& idPoint1, int& idPoint2);
 };
 ```
 
-La struttura `Edge` rappresenta un lato non orientato. Ha i seguenti membri:
+La struttura `Edge` rappresenta un lato. Ha i seguenti membri:
 
 - `id`: l'identificatore univoco del lato.
 - `idOrigin`: l'identificatore del punto di origine del lato.
@@ -64,8 +62,30 @@ Il costruttore `Edge` crea un oggetto `Edge` con i punti di origine e arrivo spe
 
 
 ## Struct Triangle
+```cpp
+struct Triangle
+{
+    int id;
+    array<int, 3> idVertices;     
+    array<int, 3> idEdges;        
+    bool active = false;
+    Triangle() = default;      
+    Triangle(int a, int b, int c, Mesh* mesh);
+    void OrderTrianglePoints(array<int, 3>& vertices, const Mesh& mesh);
+    double Area(const Mesh* mesh) const;
+    bool CircoContainsPoint(const int idPoint, const Mesh& mesh) const;
+    bool CircoContainsPoint(const double x, const double y, const Mesh& mesh) const;   
+    int TriangleContainsPoint(const int idPoint, const Mesh& mesh) const;
+    int TriangleContainsPoint(const double x, const double y, const Mesh& mesh) const;
+};` 
+```
 
-La classe `Triangle` rappresenta un triangolo nella struttura dati `Mesh`.
+La struttura `Triangle` rappresenta un triangolo. Ha i seguenti membri:
+
+-   `id`: l'identificatore univoco del triangolo.
+-   `idVertices`: un array di 3 interi che rappresentano gli identificatori dei punti che formano i vertici del triangolo.
+-   `idEdges`: un array di 3 interi che rappresentano gli identificatori dei lati che compongono il triangolo.
+-   `active`: un flag che indica se il triangolo è attivo (true) o inattivo (false).
 
 ### Costruttore `Triangle(int a, int b, int c, Mesh* mesh)`
 
@@ -169,21 +189,26 @@ Determina se il punto specificato dalle coordinate `(x, y)` è interno, di bordo
 ```cpp
 struct Mesh
 {
-        vector<Point> points;
-        vector<Edge> edges;
-        vector<Triangle> triangles;
-        
-	    bool ImportPoints(const string& inputFilePath);
-	    int AddTriangle(Triangle& t);
-	    void AddEdge(Edge& e);
+    vector<Point> points;
+    vector<Edge> edges;
+    vector<Triangle> triangles;
+	bool ImportPoints(const string& inputFilePath);
+	int AddTriangle(Triangle& t);
+	void AddEdge(Edge& e);
+	Triangle FakeTriangleCover();
+	vector<int> GetAdjacencies(const int& idTriangle);
+    bool DelaunayCondition(const int& t1, const int& t2, int& flippedT1, int& flippedT2);
+    void GenerateMesh();
+    void DeactivateFakeTriangles();
+    void ExportEdges(const vector<Edge>& edges, const string& outputFileName);
 };
 ```
-
 La classe `Mesh` rappresenta una mesh geometrica composta da punti, triangoli e lati. Ha i seguenti membri:
 
-- `points`: un vettore contenente i punti della mesh.
-- `triangles`: un vettore contenente i triangoli della mesh.
-- `edges`: un vettore contenente i lati della mesh.
+- `points`: un vettore di oggetti `Point` che rappresentano i punti della mesh.
+-   `edges`: un vettore di oggetti `Edge` che rappresentano i lati della mesh.
+-   `triangles`: un vettore di oggetti `Triangle` che rappresentano i triangoli della mesh.
+
 
 ### Metodo `Mesh::ImportPoints`
 
@@ -209,10 +234,10 @@ int Mesh::AddTriangle(Triangle& t)
 - `t`: un riferimento a un oggetto `Triangle` che rappresenta il triangolo da aggiungere alla mesh.
 
 **Output:**
-- `int`: l'identificatore assegnato al triangolo aggiunto.
+- `int`: l'identificatore del triangolo aggiunto.
 
 **Descrizione:**
-La funzione assegna un identificatore univoco al triangolo specificato e lo aggiunge al vettore `triangles` della mesh. Inoltre, per ciascuno dei tre lati del triangolo, verifica se il lato esiste già nella mesh o se deve essere creato. Se il lato esiste, aggiunge l'identificatore del triangolo corrente al vettore `idTriangles` del lato e assegna l'identificatore del lato al vettore `idEdges` del triangolo aggiunto. Se il lato non esiste, crea un nuovo oggetto `Edge`, aggiunge l'identificatore del triangolo corrente al vettore `idTriangles` del nuovo lato, lo aggiunge al vettore `edges` della mesh, e assegna l'identificatore del nuovo lato al vettore `idEdges` del triangolo aggiunto. Infine, imposta il flag `active` del triangolo a `true` per indicare che è attivo. La funzione restituisce l'identificatore assegnato al triangolo.
+La funzione assegna un identificatore univoco al triangolo specificato e lo aggiunge al vettore `triangles` della mesh. Inoltre, per ciascuno dei tre lati del triangolo, verifica se il lato esiste già nella mesh o se deve essere creato. Se il lato esiste, aggiunge l'identificatore del triangolo corrente al vettore `idTriangles` del lato e assegna l'identificatore del lato al vettore `idEdges` del triangolo aggiunto. Se il lato non esiste, crea un nuovo oggetto `Edge` e lo aggiunge al vettore `edges` della mesh. Aggiunge poi l'identificatore del triangolo corrente al vettore `idTriangles` del nuovo lato e assegna l'identificatore del nuovo lato al vettore `idEdges` del triangolo aggiunto. Infine, imposta il flag `active` del triangolo a `true` per indicare che è attivo.
 
 ### Metodo `Mesh::AddEdge`
 
@@ -231,47 +256,112 @@ La funzione `AddEdge` assegna un identificatore univoco al lato specificato e lo
 ```cpp
 Triangle TriangleMesh::FakeTriangleCover()
 ```
-
-**Descrizione:**
-Questo metodo restituisce un triangolo che "copre" l'intero set di punti. Il triangolo coprente è ottenuto attraverso un procedimento che coinvolge il calcolo delle coordinate massime e minime dei punti del dataset.
-
-
 **Output:**
 - `Triangle`: il triangolo coprente.
 
 **Descrizione:**
-Una volta individuati i valori massimi e minimi delle coordinate x e y dei punti del dataset, vengono calcolati i vertici del triangolo fittizio nel seguente modo:
-   - Vertice 1: Coordinata minima di x e coordinata minima di y.
-   - Vertice 2: Coordinata minima di x e il doppio della coordinata massima di y meno la coordinata minima di y.
-   - Vertice 3: Il doppio della coordinata massima di x meno la coordinata minima di x e coordinata minima di y.
-Viene quindi verificato se i punti del triangolo coprente corrispondono o meno a punti reali del dataset. Se uno o più vertici del triangolo coprente sono fittizi, vengono creati nuovi punti corrispondenti ai vertici mancanti e vengono aggiunti al vector `points` della `mesh`.
-Infine si crea il triangolo fittizio, utilizzando gli id dei vertici (fittizi o meno) che formano tale triangolo.
+Questo metodo restituisce un triangolo che "copre" l'intero set di punti. Il triangolo coprente è ottenuto attraverso un procedimento che coinvolge il calcolo delle coordinate massime e minime dei punti del dataset. Per ogni vertice del suddetto triangolo, viene verificato se i punti del triangolo coprente corrispondono o meno a punti reali del dataset. Se uno o più vertici del triangolo coprente sono fittizi, allora vengono creati nuovi punti (corrispondenti ai vertici mancanti) e successivamente aggiunti al vector `points` della `mesh`.
 
 ### Metodo `GetAdjacencies(const int& idSource)`
 
 ```cpp
 vector<int> TriangleMesh::GetAdjacencies(const int& idSource)
 ```
-
-**Descrizione:**
-Questo metodo restituisce gli id dei triangoli adiacenti a un triangolo specificato dalla sua id nella mesh.
-
 **Input:**
-- `const int& idSource`: l'id del triangolo di cui si vogliono ottenere gli adiacenti.
+- `const int& idSource`: l'ID del triangolo di cui si vogliono ottenere gli adiacenti.
 
 **Output:**
-- `vector<int>`: un vettore contenente gli id dei triangoli adiacenti al triangolo di origine.
+- `vector<int>`: un vettore contenente gli ID dei triangoli adiacenti al triangolo in questione.
 
-**Descrizione dettagliata:**
-1. Viene inizializzato un vettore vuoto `adjacentIds` che conterrà gli id dei triangoli adiacenti.
-2. Per ogni lato del triangolo di origine (sono presenti 3 lati), viene eseguito il seguente ciclo:
-   - Viene ottenuto l'id dell'edge corrispondente al lato.
-   - Per ogni triangolo che condivide l'edge, viene eseguito il seguente ciclo:
-     - Viene ottenuto l'id del triangolo.
-     - Se l'id del triangolo è uguale all'id del triangolo di origine, viene saltato al prossimo ciclo.
-     - Se il triangolo non è attivo, viene saltato al prossimo ciclo.
-     - Se sono stati superati i controlli precedenti, l'id del triangolo viene aggiunto a `adjacentIds`.
-3. Alla fine del ciclo, il vettore `
+**Descrizione:**
+Viene inizializzato un vettore vuoto `adjacentIds` che conterrà gli ID dei triangoli adiacenti.
+Per ogni lato del triangolo di origine, si cercano i triangoli che condividono quell'edge. Gli ID di questi triangoli vengono quindi aggiunti ad `adjacentIds`, escludendo il triangolo d'origine e quelli non attivi.
 
-adjacentIds` contenente gli id dei triangoli adiacenti viene restituito come output.
+### Metodo `DelaunayCondition`
+```cpp
+bool Mesh::DelaunayCondition(const int& t1, const int& t2, int& flippedT1, int& flippedT2)
+```
 
+**Input:**
+
+-   `const int& t1`: l'ID del primo triangolo, su cui verificare l'ipotesi di Delaunay.
+-   `const int& t2`: l'ID del secondo triangolo, su cui verificare l'ipotesi di Delaunay.
+-   `int& flippedT1`: conterrà l'ID del primo triangolo "flippato", in caso di flip.
+-   `int& flippedT2`: conterrà l'ID del secondo triangolo "flippato", in caso di flip.
+
+**Output:**
+
+-   `bool`: `true` se l'operazione di flip è stata eseguita, altrimenti `false`.
+
+**Descrizione:** 
+Questo metodo verifica la condizione di Delaunay tra due triangoli `t1` e `t2`. Se la condizione non è soddisfatta, esegue l'operazione di flip, creando due nuovi triangoli e disattivando i triangoli di origine e l'edge in comune. Infine restituisce `true` se viene eseguita l'operazione di flip, altrimenti `false`.
+
+
+### Metodo `GenerateMesh()`
+
+```cpp
+void Mesh::GenerateMesh()
+```
+**Descrizione:**
+Per ogni punto del dataset, viene avviato un ciclo for sui triangoli esistenti nella mesh che si interrompe non appena si individua il triangolo che contiene il punto corrente, escludendo i triangoli non attivi. Si procede dunque alla generazione di tre nuovi triangoli (`t1`, `t2` e `t3`), ottenuti collegando il punto corrente con i tre vertici del triangolo trovato, che invece viene disattivato. Se un triangolo è degenere, viene disattivato insieme agli eventuali lati corrispondenti. Altrimenti, viene aggiunto alla mesh.
+Successivamente si procede alla verifica della condizione di Delaunay: si avvia un ciclo while finché ci sono triangoli da controllare. Per ciascun triangolo, si ottengono gli ID dei suoi adiacenti e si verifica l'ipotesi di Delaunay tra il triangolo corrente e ciascuno dei suoi adiacenti. Se la condizione non è soddisfatta, viene eseguito un flip per correggere la mesh e i nuovi triangoli "flippati" vengono aggiunti al vector `trianglesToCheckIds`.
+Inoltre la funzione `GenerateMesh()` prevede una gestione apposita del problema, per i punti che giacciono sul bordo dei triangoli che li contengono.
+
+### Metodo `DeactivateFakeTriangles()`
+
+```cpp
+void Mesh::DeactivateFakeTriangles()
+```
+**Descrizione:**
+Questo metodo disattiva i triangoli e i lati associati ai punti fittizi presenti nella mesh.  In particolare, si itera su tutti i lati presenti nella mesh e, per ogni lato attivo, si verifica se sia collegato ad almeno un punto fittizio. Se sì, tale lato viene disattivato, insieme a tutti i triangoli che contribuisce a definire.
+
+### Metodo `ExportEdges()`
+
+```cpp
+void Mesh::ExportEdges(const vector<Edge>& edges, const string& outputFileName)
+```
+**Input:**
+
+-   `vector<Edge> edges`: vettore di oggetti `Edge` che rappresentano i segmenti della mesh.
+-   `string outputFileName`: nome del file in cui esportare i bordi.
+
+**Descrizione:**
+Questo metodo esporta in un file specificato i segmenti della mesh, contenuti nel vector `edges`, solo nel caso in cui il loro attributo `active` sia true.
+Se il file specificato non esiste viene creato, altrimenti il file già esistente viene sovrascritto. Il formato del file di output è il seguente: `Id xOrigin yOrigin xEnd yEnd`. Infine, dopo aver riportato i dati richiesti, il metodo chiude il file.
+
+## Funzioni esterne
+
+### `Distance`
+ 
+ ```cpp
+double Distance(const Point& p1, const Point& p2)
+```
+**Input:**
+
+-   `Point p1`: Il primo punto.
+-   `Point p2`: Il secondo punto.
+
+**Output:**
+La distanza euclidea tra `p1` e `p2`.
+
+**Descrizione:**
+Questa funzione calcola la distanza euclidea tra due punti nel piano.
+
+### `CalculateAngle`
+
+ ```cpp
+double CalculateAngle(const Point& p1, const Point& p2, const Point& p3)
+ ```
+ 
+**Input:**
+
+-   `p1` (tipo: `Point`): Il primo punto.
+-   `p2` (tipo: `Point`): Il secondo punto.
+-   `p3` (tipo: `Point`): Il terzo punto.
+
+**Output:**
+L'angolo in radianti formato dai tre punti.
+
+**Descrizione:**
+La funzione `CalculateAngle` calcola l'angolo tra i punti `p1`, `p2` e `p3` nel piano utilizzando il teorema del coseno: 
+`acos((d2 * d2 + d3 * d3 - d1 * d1) / (2 * d2 * d3))`, dove `d1`, `d2` e `d3` sono le distanze tra i punti, calcolate con la funzione `Distance`.
