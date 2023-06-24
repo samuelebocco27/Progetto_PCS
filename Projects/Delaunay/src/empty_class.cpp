@@ -127,10 +127,13 @@ namespace DelaunayTriangle
         double detCAD = (cx - dx) * (ay - dy) - (ax - dx) * (cy - dy);
 
         int result;
-        if ((detABD > 0 && detBCD > 0 && detCAD > 0) || (detABD < 0 && detBCD < 0 && detCAD < 0))
+        double tol = Point::geometricTol_Squared;
+        if ((detABD > tol && detBCD > tol && detCAD > tol) || (detABD < tol && detBCD < tol && detCAD < tol))
             // il punto è interno al triangolo (non di bordo)
             result = 1;
-        else if ((detABD >= 0 && detBCD >= 0 && detCAD >= 0) || (detABD <= 0 && detBCD <= 0 && detCAD <= 0))
+        else if ((abs(detABD) <= tol && abs(detBCD) > tol && abs(detCAD) > tol) ||
+                 (abs(detABD) > tol && abs(detBCD) <= tol && abs(detCAD) > tol) ||
+                 (abs(detABD) > tol && abs(detBCD) > tol && abs(detCAD) <= tol))
             // il punto è di bordo al triangolo
             result = 2;
         else
@@ -586,7 +589,7 @@ namespace DelaunayTriangle
                             bool flipped = DelaunayCondition(triangleToCheck, adj, flippedT1, flippedT2);
                             if (flipped)
                             {
-                                // Se entro nell'if, fllippedT1 e flippedT2 non valgono -1, ma contengono gli id dei due nuovi triangoli creati da DelaunayCondition
+                                // Se entro nell'if, flippedT1 e flippedT2 non valgono -1, ma contengono gli id dei due nuovi triangoli creati da DelaunayCondition
                                 trianglesToCheckIds.push_back(flippedT1);
                                 trianglesToCheckIds.push_back(flippedT2);
                                 break;

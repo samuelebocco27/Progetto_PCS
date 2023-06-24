@@ -27,27 +27,12 @@ int main()
     // Inserisco nella triangolazione tutti i punti, che ora saranno tutti interni
     mesh.GenerateMesh();
 
-    cout << "Costruzione della mesh terminata." << endl;
-
     // Disattivo lati e triangoli costruiti con i vertici fittizi
     mesh.DeactivateFakeTriangles();
-
-    cout << "Disattivazione triangoli fittizi terminata." << endl;
-
-    // Stampo per verifiche
-    cout << "Numero di punti: " << mesh.points.size() << endl;
-    cout << "Numero di edge: " << mesh.edges.size() << endl;
-    cout << "Numero di triangoli: " << mesh.triangles.size() << endl;
 
     // Esporto in un file csv gli edge attivi della mesh, in modo da poterli visualizzare
     string outputFileName = "../Delaunay/Dataset/Edges_export.csv";
     mesh.ExportEdges(mesh.edges, outputFileName);
-
-    cout << "Punti fittizi: sono disattivati?" << endl;
-    for (Point point : mesh.points)
-    {
-        cout << "Punto " << point.id << ": (" << point.x << ", " << point.y << ")  -  actualPoint: " << point.actualPoint << endl;
-    }
 
     return 0;
 }
