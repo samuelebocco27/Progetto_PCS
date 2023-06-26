@@ -6,68 +6,36 @@
 using namespace std;
 using namespace DelaunayTriangle;
 
-/// \brief Reads the points contained in Points.csv
-/// \param filePath: path name of the input file
-/// \param points: coordinates of mesh points
-/// \return the result of the reading, true is success, false is error
-bool ImportPoints(const string& inputFilePath,
-                  vector<Point>& points);
 
 int main()
 {
+    Mesh mesh;  // inizializzazione mesh
+
     // Lettura punti
-    vector<Point> points;
     string inputFilePath = "../Delaunay/Dataset/Points.csv";
-    ImportPoints(inputFilePath, points);
+    if(!mesh.ImportPoints(inputFilePath))
+    {
+        cerr << "Import Points failed!";
+        return -1;
+    }
 
-    // Inizializzo il vettore che dovrà contenere tutti i triangoli della triangolazione
-    vector<Triangle> triangulation;
+    // Creo un triangolo fittizio (i suoi vertici non sono necessariamente punti reali) che contenga tutti i punti della mesh.
+    // Aggiungo il triangolo alla triangolazione.
+    Triangle maxTriangle = mesh.FakeTriangleCover();
+    mesh.AddTriangle(maxTriangle);
 
-    // Trovo il triangolo di area massima. Lo inserisco tra i vettori della triangolazione
-    Triangle maxTriangle = GetMaxAreaTriangle(points, 0, points.size());
-    triangulation.push_back(maxTriangle);
+    // Inserisco nella triangolazione tutti i punti, che ora saranno tutti interni
+    mesh.GenerateMesh();
 
-    // Costruisco la pseudo ricopertura convessa
+    // Disattivo lati e triangoli costruiti con i vertici fittizi
+    mesh.DeactivateFakeTriangles();
 
-
-    // Inserisco nella triangolazione i punti interni
+    // Esporto in un file csv gli edge attivi della mesh, in modo da poterli visualizzare
+    string outputFileName = "../Delaunay/Dataset/Edges_export.csv";
+    mesh.ExportEdges(mesh.edges, outputFileName);
 
     return 0;
 }
 
 
-bool ImportPoints (const string& inputFilePath,
-                   vector<Point>& points)
-{
-    /// Apertura file
-    ifstream file;
-    file.open(inputFilePath);
 
-    if (file.fail())
-    {
-        cerr<< "Errore apertura file"<< endl;
-        return false;
-    }
-
-    ///  Lettura File
-    string line;
-
-    // ignoro la prima riga (è l'intestazione della tabella)
-    getline(file, line);
-
-    while (!file.eof())   // .eof() --> end of file
-    {
-        getline(file, line);
-        istringstream iss(line);
-        Point p;
-        iss >> p.id;
-        iss >> p.x;
-        iss >> p.y;
-        points.push_back(p);
-    }
-
-    /// Chiusura File
-    file.close();
-
-    return true;
-}
