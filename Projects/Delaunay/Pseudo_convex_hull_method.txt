@@ -311,21 +311,21 @@ void GestionePuntoEsterno(Point& newPoint, vector<Point>& PuntiBordo, Mesh& mesh
         		Point firstVertex = pair.first;
         		Point secondVertex = pair.second;
 		Triangle hypotheticTriangle = Triangle(firstVertex, secondVertex, newPoint);
-		for (const Point& T : PuntiBordo)
-		{
-			if (hypotheticTriangle.TriangleContainsPoint(T) == 1)
-				{//hypotheticTriangle contiene il punto di bordo T al suo interno --> hypotheticTriangle non è valido, e T non è più punto di bordo.
-				PuntiNonPiuBordo.push_back(T);
-				valido = false;}
-			if (hypotheticTriangle.Area(mesh) < EPSILON DA DECIDERE)
-				{//hypotheticTriangle ha area nulla, è degenere --> hypotheticTriangle non è valido.
-				valido = false;
-				break;}
-		}
+		if (hypotheticTriangle.Area(mesh) < GeometricTol)
+			{//hypotheticTriangle ha area nulla, è degenere --> hypotheticTriangle non è valido.
+			valido = false;}
+		if (valido)
+			{for (const Point& T : PuntiBordo)
+				{
+				if (hypotheticTriangle.TriangleContainsPoint(T) == 1)
+					{//hypotheticTriangle contiene il punto di bordo T al suo interno --> hypotheticTriangle non è valido, e T non è più punto di bordo.
+					PuntiNonPiuBordo.push_back(T);
+					valido = false;}
+				}
+			}
 		if (valido)
 			{mesh.AddTriangle(hypotheticTriangle);
-			FUNZIONE CHE EFFETTUA LA VERIFICA DELAUNAY
-		}
+			Funzione che effettua il controllo di Delaunay;}	
 	}
 	//Eliminiamo da PuntiBordo tutti i punti che non sono più di bordo.
 	for (const Point& PointNotBordo : PuntiNonPiuBordo)
@@ -338,5 +338,3 @@ void GestionePuntoEsterno(Point& newPoint, vector<Point>& PuntiBordo, Mesh& mesh
 	newPoint.inserted = True;
 	PuntiBordo.push_back(newPoint);
 }
-
-
