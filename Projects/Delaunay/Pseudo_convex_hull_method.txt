@@ -3,7 +3,7 @@
 //creo una lista con i punti di bordo
 vector<Point> PuntiBordo;
 
-Triangle maxTriangle = GetMaxAreaTriangle(mesh.points, 0, mesh.points.size());
+Triangle maxTriangle = GetMaxAreaTriangle(mesh.points, 0, mesh.points.size()); --- il corpo della funzione è in fondo
 
 mesh.AddTriangle(maxTriangle);
 for (i=0, i<3, i++)
