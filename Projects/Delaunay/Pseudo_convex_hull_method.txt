@@ -1,0 +1,342 @@
+//Costruzione Pseudo Convex - Hull
+
+//creo una lista con i punti di bordo
+vector<Point> PuntiBordo;
+
+Triangle maxTriangle = GetMaxAreaTriangle(mesh.points, 0, mesh.points.size());
+
+mesh.AddTriangle(maxTriangle);
+for (i=0, i<3, i++)
+	Point p = mesh.points[maxTriangle.vertices[i]];
+	p.inserted = True;
+	PuntiBordo.push_back(p);
+
+vector <Point> CardinalPoints; 
+//individuo i punti più a nord, sud, est ed ovest del set di punti salvato in mesh.points
+
+Point nord;
+Point sud;
+Point est;
+Point ovest;
+FindPointsEstremi(mesh.points, nord, sud, est, ovest, maxTriangle);   --- il corpo della funzione è in fondo
+
+// aggiungo i punti cardinali alla lista CardinalPoints, escludendo i vertici di maxTriangle ed evitando duplicati
+
+bool nordInVertices = false;
+bool sudInVertices = false;
+bool estInVertices = false;
+bool ovestInVertices = false;
+AddCardinalPoints(nord, sud, est, ovest, maxTriangle, CardinalPoints ); --- il corpo della funzione è in fondo
+
+//ciclo sulla lista di punti cardinali
+for (i=0, i < CardinalPoints.size , i++)
+	newPoint = CardinalPoints[i];
+	GestionePuntoEsterno(newPoint, PuntiBordo, mesh); ---  il corpo della funzione è in fondo
+
+//qui segue la chiamata di GENERATE MESH
+
+
+
+
+
+//////////////////questo codice è da usare DOPO aver completato lo pseudo convex hull.
+bool pointIsInside = False;
+//ciclo sulla lista di point che abbiano inserted = False
+for (i=0, i < .size , i++)
+	for t in mesh.triangles
+		if  t.TriangleContainsPoint(const double x, const double y) 
+			//ALGORITMO PER PUNTO INTERNO (che sarebbe CardinalPoints[i]) ----> CardinalPoints[i].inserted diventerà True
+			pointIsInside = True;
+			break
+	if !pointIsInside
+		ALGORITMO PER PUNTO ESTERNO
+////////////////////
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// Funzione per trovare il triangolo di area massima
+
+Triangle Mesh::GetMaxAreaTriangle(vector<Point>& points, int start, int end)
+    {
+        // Se ci sono meno di due punti, l'area non può essere calcolata e quindi il processo ritorna il triangolo di area nulla, che
+        // sicuramente non è quello di area massima
+        if( end - start < 2 )
+        {
+            return Triangle();
+        }
+
+        // Caso base: se ci sono solo tre punti, il triangolo di area massima è l'unico triangolo possibile
+        if (end - start == 2) {
+            return Triangle(start, start + 1, start + 2, this);
+        }
+
+        // Divido i punti in due gruppi. Trovo ricorsivamente la massima area per i punti di un set e dell'altro
+        int mid = start + (end - start) / 2;
+        Triangle leftMaxTriangle = GetMaxAreaTriangle(points, start, mid);
+        double leftMaxArea = leftMaxTriangle.Area(this);
+        Triangle rightMaxTriangle = GetMaxAreaTriangle(points, mid, end);
+        double rightMaxArea = rightMaxTriangle.Area(this);
+
+        // Trovo l'area massima per i triangoli formati da punti provenienti da entrambi i set
+        double crossMax = 0.0;
+        Triangle crossMaxTriangle;
+        int left = mid - 1, right = mid + 1;
+        while (left >= start && right < end)
+        {
+            crossMaxTriangle = Triangle(left, mid, right, this);
+            crossMax = max(crossMax, crossMaxTriangle.Area(this));
+            if (left == start)
+            {
+                right++;
+            }
+            else if (right == end - 1)
+            {
+                left--;
+            }
+            else
+            {
+                double area1 = Triangle(left - 1, left, mid, this).Area(this);
+                double area2 = Triangle(mid, right, right + 1, this).Area(this);
+                if (area1 > area2)
+                {
+                    left--;
+                }
+                else
+                {
+                    right++;
+                }
+            }
+        }
+
+        // Ritorno l'area massima tra i triangoli con area massima dei due set e di quello che li mischia entrambi.
+        double max_area = max(crossMax, max(leftMaxArea, rightMaxArea));
+        if( max_area == leftMaxArea )
+            return leftMaxTriangle;
+        else if( max_area == rightMaxArea )
+            return rightMaxTriangle;
+        else
+            return crossMaxTriangle;
+    }
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// Funzione per trovare i points estremi: void FindPointsEstremi()
+
+void FindPointsEstremi(const std::vector<Point>& points, Point& nord, Point& sud, Point& est, Point& ovest, const Triangle& maxTriangle) {
+    // Inizializzazione dei points estremi con il primo punto del vettore
+    nord = points[0];
+    sud = points[0];
+    est = points[0];
+    ovest = points[0];
+
+    // Trova i points estremi
+    for (const Point& punto : points) {
+        // Punto più a nord
+        if (punto.y > nord.y || (punto.y == nord.y && punto.id < nord.id)) {
+            nord = punto;
+        }
+        // Punto più a sud
+        if (punto.y < sud.y || (punto.y == sud.y && punto.id < sud.id)) {
+            sud = punto;
+        }
+        // Punto più a est
+        if (punto.x > est.x || (punto.x == est.x && punto.id < est.id)) {
+            est = punto;
+        }
+        // Punto più a ovest
+        if (punto.x < ovest.x || (punto.x == ovest.x && punto.id < ovest.id)) {
+            ovest = punto;
+        }
+    }
+
+    // Se uno dei points estremi è un vertice di maxTriangle, cerca un punto candidato non vertice per sostituirlo.
+  for (const Point* vertex : maxTriangle.vertices) {
+        if (vertex->id == nord.id) {
+            for (const Point& punto : points) {
+                if (punto.id != nord.id && punto.y == nord.y) {
+                    nord = punto;
+                    break;
+                }
+            }
+        }
+        if (vertex->id == sud.id) {
+            for (const Point& punto : points) {
+                if (punto.id != sud.id && punto.y == sud.y) {
+                    sud = punto;
+                    break;
+                }
+            }
+        }
+        if (vertex->id == est.id) {
+            for (const Point& punto : points) {
+                if (punto.id != est.id && punto.x == est.x) {
+                    est = punto;
+                    break;
+                }
+            }
+        }
+        if (vertex->id == ovest.id) {
+            for (const Point& punto : points) {
+                if (punto.id != ovest.id && punto.x == ovest.x) {
+                    ovest = punto;
+                    break;
+                }
+            }
+        }
+    }
+}
+
+
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+//Funzione per aggiugere i punti estremi a CardinalPoints, solo se questi sono diversi dai vertici di maxTriangle
+
+void AddCardinalPoints (Point& nord, Point& sud, Point& est, Point& ovest, const Triangle& maxTriangle,vector <Point>& CardinalPoints )
+{
+    // Verifica se i punti nord, sud, est e ovest sono vertici di maxTriangle
+    for (Point* vertex : maxTriangle.vertices)
+    {
+        if (vertex->id == nord.id)
+            nordInVertices = true;
+        if (vertex->id == sud.id)
+            sudInVertices = true;
+        if (vertex->id == est.id)
+            estInVertices = true;
+        if (vertex->id == ovest.id)
+            ovestInVertices = true;
+    }
+
+    // Aggiungi i punti a CardinalPoints solo se non sono vertici di maxTriangle, evitando duplicati (per questo si usa la funzione isDuplicate ---- corpo della funzione è in fondo)
+    if (!nordInVertices && !isDuplicate(nord, CardinalPoints))
+        CardinalPoints.push_back(nord);
+    if (!sudInVertices && !isDuplicate(sud, CardinalPoints))
+        CardinalPoints.push_back(sud);
+    if (!estInVertices && !isDuplicate(est, CardinalPoints))
+        CardinalPoints.push_back(est);
+    if (!ovestInVertices && !isDuplicate(ovest, CardinalPoints))
+        CardinalPoints.push_back(ovest);
+}
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+bool isDuplicate(const Point& punto, const std::vector<Point>& points)
+{
+    for (const Point& j : points)
+    {
+        if (punto.id == j.id)
+        {
+            // punto è gia presente nel vector points
+            return true;
+        }
+    }
+    // punto non è presente nel vector points
+    return false;
+}
+
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+bool doEdgesIntersect(const Point& newPoint, const Point& pointBordo, const Edge& edge2, const std::vector<Point>& points)
+{
+	const Point& p1 = newPoint;
+	const Point& p2 = pointBordo;
+	const Point& p3 = points[edge2.idOrigin];
+	const Point& p4 = points[edge2.idEnd];
+
+// Calcola i prodotti vettoriali
+double cross1 = (p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x);
+double cross2 = (p4.x - p3.x) * (p2.y - p3.y) - (p4.y - p3.y) * (p2.x - p3.x);
+double cross3 = (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x);
+double cross4 = (p2.x - p1.x) * (p4.y - p1.y) - (p2.y - p1.y) * (p4.x - p1.x);
+
+// Controlla se gli edge si intersecano
+if ((cross1 * cross2 < 0) && (cross3 * cross4 < 0))
+    return true;
+
+return false;
+}
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+std::vector<Point> findNonIntersectingPoints(const Point& newPoint ,const std::vector<Point>& PuntiBordo, const std::vector<Edge>& edges)
+{
+std::vector<Point> result;
+
+for (const Point& T : PuntiBordo)
+{
+	bool intersects = false;
+
+	// Controlla se il nuovo edge (che ha per estremi newPoint e T) interseca gli edge presenti
+	for (const Edge& existingEdge : edges)
+	{
+		if (doEdgesIntersect(newPoint, T, existingEdge, mesh.points))
+		{
+			intersects = true;
+			break;
+		}
+	}
+
+// Aggiungi l'id di T al risultato solo se non ci sono intersezioni
+if (!intersects)
+	result.push_back(T);
+}
+
+return result;
+}
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+std::vector<std::pair<Point, Point>> getCombinations(const std::vector<Point>& PuntiDaCollegare)
+{
+    std::vector<std::pair<Point, Point>> combinations;
+
+    for (int i = 0; i < PuntiDaCollegare.size() - 1; i++) {
+        for (int j = i + 1; j < PuntiDaCollegare.size(); j++) {
+            combinations.push_back(std::make_pair(PuntiDaCollegare[i],PuntiDaCollegare[j]));
+        }
+    }
+
+    return combinations;
+}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void GestionePuntoEsterno(Point& newPoint, vector<Point>& PuntiBordo, Mesh& mesh)
+{
+	//cerco i punti di bordo che possono essere collegati con il newPoint, senza generare intersezioni
+	vector<Point> PuntiDaCollegare = findNonIntersectingPoints(newPoint, PuntiBordo, mesh.edges);
+	vector<std::pair<Point, Point>>combinations = GetCombinations(const std::vector<Point>& PuntiDaCollegare)
+	vector <Point> PuntiNonPiuBordo;
+	for (const Point& pair : combinations)
+	{
+		valido = true;
+        		Point firstVertex = pair.first;
+        		Point secondVertex = pair.second;
+		Triangle hypotheticTriangle = Triangle(firstVertex, secondVertex, newPoint);
+		for (const Point& T : PuntiBordo)
+		{
+			if (hypotheticTriangle.TriangleContainsPoint(T) == 1)
+				{//hypotheticTriangle contiene il punto di bordo T al suo interno --> hypotheticTriangle non è valido, e T non è più punto di bordo.
+				PuntiNonPiuBordo.push_back(T);
+				valido = false;}
+			if (hypotheticTriangle.Area(mesh) < EPSILON DA DECIDERE)
+				{//hypotheticTriangle ha area nulla, è degenere --> hypotheticTriangle non è valido.
+				valido = false;
+				break;}
+		}
+		if (valido)
+			{mesh.AddTriangle(hypotheticTriangle);
+			FUNZIONE CHE EFFETTUA LA VERIFICA DELAUNAY
+		}
+	}
+	//Eliminiamo da PuntiBordo tutti i punti che non sono più di bordo.
+	for (const Point& PointNotBordo : PuntiNonPiuBordo)
+	{
+		// Utilizziamo la funzione erase per eliminare da PuntiBordo il punto PointNotBordo.
+		auto it = std::find(PuntiBordo.begin(), PuntiBordo.end(), PointNotBordo); //NOTA BENE: il tipo effettivo di it non è un puntatore, ma un iteratore che punta a PointNotBordo.
+		if (it != PuntiBordo.end())
+   			{PuntiBordo.erase(it);}
+	}
+	newPoint.inserted = True;
+	PuntiBordo.push_back(newPoint);
+}
+
+

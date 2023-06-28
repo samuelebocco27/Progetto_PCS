@@ -248,69 +248,6 @@ namespace DelaunayTriangle
     }
 
 
-    Triangle Mesh::GetMaxAreaTriangle(vector<Point>& points, int start, int end)
-    {
-        // Se ci sono meno di due punti, l'area non può essere calcolata e quindi il processo ritorna il triangolo di area nulla, che
-        // sicuramente non è quello di area massima
-        if( end - start < 2 )
-        {
-            return Triangle();
-        }
-
-        // Caso base: se ci sono solo tre punti, il triangolo di area massima è l'unico triangolo possibile
-        if (end - start == 2) {
-            return Triangle(start, start + 1, start + 2, this);
-        }
-
-        // Divido i punti in due gruppi. Trovo ricorsivamente la massima area per i punti di un set e dell'altro
-        int mid = start + (end - start) / 2;
-        Triangle leftMaxTriangle = GetMaxAreaTriangle(points, start, mid);
-        double leftMaxArea = leftMaxTriangle.Area(this);
-        Triangle rightMaxTriangle = GetMaxAreaTriangle(points, mid, end);
-        double rightMaxArea = rightMaxTriangle.Area(this);
-
-        // Trovo l'area massima per i triangoli formati da punti provenienti da entrambi i set
-        double crossMax = 0.0;
-        Triangle crossMaxTriangle;
-        int left = mid - 1, right = mid + 1;
-        while (left >= start && right < end)
-        {
-            crossMaxTriangle = Triangle(left, mid, right, this);
-            crossMax = max(crossMax, crossMaxTriangle.Area(this));
-            if (left == start)
-            {
-                right++;
-            }
-            else if (right == end - 1)
-            {
-                left--;
-            }
-            else
-            {
-                double area1 = Triangle(left - 1, left, mid, this).Area(this);
-                double area2 = Triangle(mid, right, right + 1, this).Area(this);
-                if (area1 > area2)
-                {
-                    left--;
-                }
-                else
-                {
-                    right++;
-                }
-            }
-        }
-
-        // Ritorno l'area massima tra i triangoli con area massima dei due set e di quello che li mischia entrambi.
-        double max_area = max(crossMax, max(leftMaxArea, rightMaxArea));
-        if( max_area == leftMaxArea )
-            return leftMaxTriangle;
-        else if( max_area == rightMaxArea )
-            return rightMaxTriangle;
-        else
-            return crossMaxTriangle;
-    }
-
-
     Triangle Mesh::FakeTriangleCover()
     {
         // Cerco max x, max y, min x, min y

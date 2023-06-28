@@ -116,13 +116,6 @@ namespace DelaunayTriangle
         /// \param e: un lato della struct Edge
         void AddEdge(Edge& e);
 
-        ///\brief Trova il triangolo di area massima
-        ///\param points: vettore dei punti, tre di essi saranno i vertici del triangolo di area massima
-        ///\param start: indice da cui iniziare la ricerca dentro points
-        ///\param end: indice al quale finire la ricerca dentro points
-        ///\return il triangolo di area massima
-        Triangle GetMaxAreaTriangle(vector<Point>& points, int start, int end);  // Non più utilizzata se usiamo il triangolo fittizio
-
         /// \brief Trova un triangolo con vertici fittizi che ricopre tutti i punti della mesh
         /// \return Un triangolo che contiene tutti i punti della mesh
         Triangle FakeTriangleCover();

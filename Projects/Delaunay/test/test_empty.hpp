@@ -166,32 +166,6 @@ TEST(TestTriangleContainsPoint, TestPointInternal)
 }
 
 //
-//
-
-//TEST DI MESH
-//
-//Test per verificare Mesh::GetMaxAreaTriangle. N.B. NEL CASO IN CUI VOGLIAMO UTILIZZARLO DOBBIAMO MODIFICARE GetMaxAreaTriangle per farla lavorare con gli id
-/*TEST(TestMaxAreaTriangle, TestMaxArea)
-{
-    Mesh mesh;
-    Point a, b, c, d, e, f;
-    a.id=0; a.x=0.0; a.y=0.0;
-    b.id=1; b.x=0.0; b.y=0.5;
-    c.id=2; c.x=0.0; c.y=1.0;
-    d.id=3; d.x=0.5; d.y=0.0;
-    e.id=4; e.x=0.5; e.y=0.5;
-    f.id=5; f.x=1.0; f.y=0.0;
-    mesh.points.push_back(a);mesh.points.push_back(b);mesh.points.push_back(c);
-    mesh.points.push_back(d);mesh.points.push_back(e);mesh.points.push_back(f);
-
-    Triangle max = Triangle(a.id, c.id, f.id, &mesh);
-
-    Triangle max_area = mesh.GetMaxAreaTriangle(mesh.points, 0, mesh.points.size());
-    EXPECT_EQ(max.Area(&mesh), max_area.Area(&mesh));
-}
-*/
-//
-
 //Test per verificare Mesh::FakeTriangleCover()
 TEST(TestFakeTriangleCover, TestFakeTriangleCover)
 {
